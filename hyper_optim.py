@@ -12,7 +12,7 @@ def objective(params):
     print(f"Testing with: {params}")
     
     # Train the model with K-Fold CV
-    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, lr=args.lr, device=device, shuffle=args.shuffle)
+    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle)
 
     print(f"Validation Loss: {val_loss:.6f}\n")
 
@@ -38,7 +38,9 @@ if __name__ == "__main__":
     # input bounds
     parser.add_argument('--bound_x', type=str, default=None, help='Bounds for the input data')
     # epochs
-    parser.add_argument('--epochs', type=int, default=1000, help='Number of epochs')
+    parser.add_argument('--epochs', type=int, default=None, help='Number of epochs')
+    # epochs per neuron
+    parser.add_argument('--epochs_neuron', type=int, default=10, help='Number of epochs per neuron')
 
 
     args = parser.parse_args()
@@ -68,10 +70,12 @@ if __name__ == "__main__":
     # Load the data
     x = np.loadtxt(args.data_x)
     y = np.loadtxt(args.data_y)
-    bounds = np.loadtxt(args.bound_x)
-    # normalize the input data (only the first matched columns)
-    dimx_original = bounds.shape[0]
-    x[:,:dimx_original] = (x[:,:dimx_original] - bounds[:,0]) / (bounds[:,1] - bounds[:,0])
+    # normalize the input data if bounds are provided
+    if args.bound_x is not None:
+        bounds = np.loadtxt(args.bound_x)
+        # normalize the input data (only the first matched columns)
+        dimx_original = bounds.shape[0]
+        x[:,:dimx_original] = (x[:,:dimx_original] - bounds[:,0]) / (bounds[:,1] - bounds[:,0])
 
     # Convert to tensors on the CPU 
     x_tensor = torch.tensor(x, dtype=torch.float32)
@@ -109,7 +113,7 @@ if __name__ == "__main__":
 
     # Evaluate the model with the best hyperparameters
     best_params = {'hidden_size': hidden_size_choices[best_hyperparams['hidden_size']], 'decay': best_hyperparams['decay'], 'num_layers': num_layers_choices[best_hyperparams['num_layers']]}
-    final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, shuffle=args.shuffle)
+    final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -118,6 +122,7 @@ if __name__ == "__main__":
     model_path = os.path.join(args.model_dir, 'best_model.pth')
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
-    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=args.epochs)
+    epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
+    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs)
 
     print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")

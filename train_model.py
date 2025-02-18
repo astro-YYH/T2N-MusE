@@ -200,7 +200,8 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
     return train_loss, val_loss
 
 # Training function with K-Fold CV
-def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=1000, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True):
+def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True):
+    epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
     kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
     fold_results = []
 

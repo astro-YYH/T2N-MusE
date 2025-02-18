@@ -25,8 +25,12 @@ def load_model(path, device='cpu'):
 
 # load L1, L2 and LF-HF models, and make predictions
 class mfbox:
-    def __init__(self, path_L1, path_L2, path_LH, device='cpu'):
+    def __init__(self, path_L1, path_L2, path_LH, device='cpu', stitch="XL1L2"):
         self.device = torch.device(device)
+
+        if stitch not in ['XL1L2', 'XL', 'L']:
+            raise ValueError("stitch should be one of 'XL1L2', 'XL' and 'L'")
+        self.stitch = stitch
 
         # Load the saved model dictionary
         self.model_L1 = load_model(path_L1, device=self.device)
@@ -35,6 +39,10 @@ class mfbox:
         self.model_L1.eval()
         self.model_L2.eval()
         self.model_LH.eval()
+
+        self.lgk_L1 = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt") # use this for now, will be replaced later
+        self.lgk_L2 = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt")
+        self.lgk_H = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt")
     
     def predict(self, x):
         # Convert to tensor
@@ -44,11 +52,27 @@ class mfbox:
         y_L1 = self.model_L1(x_tensor)
         y_L2 = self.model_L2(x_tensor)
 
-        # Concatenate the predictions
-        x_xyL1L2 = torch.cat((x_tensor, y_L1, y_L2), dim=1)
-        y = self.model_LH(x_xyL1L2).detach().cpu().numpy()
+        # Concatenate the predictions with the input according to the stitching method
+        if self.stitch == 'XL1L2':
+            x_LH = torch.cat((x_tensor, y_L1, y_L2), dim=1)
+        else:
+            # cut and stitch L1 and L2
+            middle = y_L1.shape[1] // 2
+            y_L1_interp = np.array([np.interp(self.lgk_H[:middle], self.lgk_L1, y_L1[i, :].detach().numpy()) for i in range(y_L1.shape[0])])
+            y_L2_interp = np.array([np.interp(self.lgk_H[middle:], self.lgk_L2, y_L2[i, :].detach().numpy()) for i in range(y_L2.shape[0])])
+            # to tensor
+            y_L1_interp = torch.tensor(y_L1_interp, dtype=torch.float32).to(self.device)
+            y_L2_interp = torch.tensor(y_L2_interp, dtype=torch.float32).to(self.device)
+            
+            if self.stitch == 'XL':
+                x_LH = torch.cat((x_tensor, y_L1_interp, y_L2_interp), dim=1)
+            else: # 'L'
+                x_LH = torch.cat((y_L1_interp, y_L2_interp), dim=1)
 
-        return y
+
+        y = self.model_LH(x_LH).detach().cpu().numpy()
+
+        return self.lgk_H, y
     
     def predict_L1(self, x):
         # Convert to tensor
@@ -57,7 +81,7 @@ class mfbox:
         # Make predictions
         y = self.model_L1(x_tensor).detach().cpu().numpy()
 
-        return y
+        return self.lgk_L1, y
     
     def predict_L2(self, x):
         # Convert to tensor
@@ -66,35 +90,35 @@ class mfbox:
         # Make predictions
         y = self.model_L2(x_tensor).detach().cpu().numpy()
 
-        return y
+        return self.lgk_L2, y
     
 
 # define gokunet model based on mfbox, normalize the input data
 
 class gokunet(mfbox):
-    def __init__(self, path_L1, path_L2, path_LH, device='cpu', bounds_path="./data/pre_N_L-H_z0/input_limits.txt"):
-        super().__init__(path_L1, path_L2, path_LH, device=device)
+    def __init__(self, path_L1, path_L2, path_LH, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt", stitch="XL1L2"):
+        super().__init__(path_L1, path_L2, path_LH, device=device, stitch=stitch)
         self.bounds = np.loadtxt(bounds_path)
     
     def predict(self, x):
         # Normalize the input data
         x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
-        y = super().predict(x)
+        lgk, y = super().predict(x)
         # return 10**y # Convert back to linear scale
-        return 10**y
+        return 10**lgk, 10**y
     
     def predict_L1(self, x):
         # Normalize the input data
         x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
-        y = super().predict_L1(x)
+        lgk, y = super().predict_L1(x)
         # return 10**y # Convert back to linear scale
-        return 10**y
+        return 10**lgk, 10**y
     
     def predict_L2(self, x):
         # Normalize the input data
         x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
-        y = super().predict_L2(x)
+        lgk, y = super().predict_L2(x)
         # return 10**y # Convert back to linear scale
-        return 10**y
+        return 10**lgk, 10**y
     
 
