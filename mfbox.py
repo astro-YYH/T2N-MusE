@@ -98,7 +98,7 @@ class mfbox:
         y = self.model_L2(x_tensor).detach().cpu().numpy()
 
         return self.lgk_L2, y
-    
+
 
 # define gokunet model based on mfbox, normalize the input data
 
@@ -128,4 +128,77 @@ class gokunet(mfbox):
         # return 10**y # Convert back to linear scale
         return 10**lgk, 10**y
     
+# define doublefid: LF and HF
+class doublefid:
+    def __init__(self, path_LF, path_LH, device='cpu'):
+        self.device = torch.device(device)
+
+        # Load the saved model dictionary
+        self.model_LF = load_model(path_LF, device=self.device)
+        self.model_HF = load_model(path_LH, device=self.device)
+        self.model_LF.eval()
+        self.model_HF.eval()
+
+        self.lgk_LF = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt") # use this for now, will be replaced later
+        self.lgk_HF = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt")
+    
+    def predict(self, x):
+        # Convert to tensor
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(self.device)
+
+        # Make predictions
+        y_LF = self.model_LF(x_tensor)
+        x_LH = torch.cat((x_tensor, y_LF), dim=1)
+        y_HF = self.model_HF(x_LH)
+
+        return self.lgk_HF, y_HF.detach().cpu().numpy()
+    
+    def predict_LF(self, x):
+        # Convert to tensor
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(self.device)
+
+        # Make predictions
+        y = self.model_LF(x_tensor).detach().cpu().numpy()
+
+        return self.lgk_LF, y
+    
+# define gokunet_df based on doublefid
+class gokunet_df(doublefid):
+    def __init__(self, path_LF, path_LH, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
+        super().__init__(path_LF, path_LH, device=device)
+        self.bounds = np.loadtxt(bounds_path)
+    
+    def predict(self, x):
+        # Normalize the input data
+        x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        lgk, y = super().predict(x)
+        # return 10**y # Convert back to linear scale
+        return 10**lgk, 10**y
+    
+    def predict_LF(self, x):
+        # Normalize the input data
+        x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        lgk, y = super().predict_LF(x)
+        # return 10**y # Convert back to linear scale
+        return 10**lgk, 10**y
+
+# define gokunet-split based on gokunet_df
+class gokunet_split():
+    def __init__(self, path_LA, path_HA, path_LB, path_HB, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
+        self.part_A = gokunet_df(path_LA, path_HA, device=device, bounds_path=bounds_path)
+        self.part_B = gokunet_df(path_LB, path_HB, device=device, bounds_path=bounds_path)
+
+    def predict_LA(self, x):
+        return self.part_A.predict_LF(x)
+    
+    def predict_LB(self, x):
+        return self.part_B.predict_LF(x)
+    
+    def predict(self, x):
+        k_A, y_A = self.part_A.predict(x)
+        k_B, y_B = self.part_B.predict(x)
+        # concatenate the results
+        k = np.concatenate((k_A, k_B))
+        y = np.concatenate((y_A, y_B), axis=1)
+        return k, y
 
