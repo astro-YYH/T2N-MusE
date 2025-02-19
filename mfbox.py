@@ -25,7 +25,7 @@ def load_model(path, device='cpu'):
 
 # load L1, L2 and LF-HF models, and make predictions
 class mfbox:
-    def __init__(self, path_L1, path_L2, path_LH, device='cpu', stitch="XL1L2"):
+    def __init__(self, path_L1, path_L2, path_LH, path_LHf=None, device='cpu', stitch="XL1L2"):
         self.device = torch.device(device)
 
         if stitch not in ['XL1L2', 'XL', 'L']:
@@ -39,6 +39,8 @@ class mfbox:
         self.model_L1.eval()
         self.model_L2.eval()
         self.model_LH.eval()
+        # load the final LH model if provided
+        self.model_LHf = load_model(path_LHf, device=self.device) if path_LHf is not None else None
 
         self.lgk_L1 = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt") # use this for now, will be replaced later
         self.lgk_L2 = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt")
@@ -63,14 +65,19 @@ class mfbox:
             # to tensor
             y_L1_interp = torch.tensor(y_L1_interp, dtype=torch.float32).to(self.device)
             y_L2_interp = torch.tensor(y_L2_interp, dtype=torch.float32).to(self.device)
-            
+
             if self.stitch == 'XL':
                 x_LH = torch.cat((x_tensor, y_L1_interp, y_L2_interp), dim=1)
             else: # 'L'
                 x_LH = torch.cat((y_L1_interp, y_L2_interp), dim=1)
 
+        y = self.model_LH(x_LH)
 
-        y = self.model_LH(x_LH).detach().cpu().numpy()
+        if self.model_LHf is not None:
+            x_LHf = torch.cat((x_LH, y), dim=1)
+            y = self.model_LHf(x_LHf).detach().cpu().numpy()
+        else:
+            y = y.detach().cpu().numpy()
 
         return self.lgk_H, y
     
@@ -96,8 +103,8 @@ class mfbox:
 # define gokunet model based on mfbox, normalize the input data
 
 class gokunet(mfbox):
-    def __init__(self, path_L1, path_L2, path_LH, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt", stitch="XL1L2"):
-        super().__init__(path_L1, path_L2, path_LH, device=device, stitch=stitch)
+    def __init__(self, path_L1, path_L2, path_LH, path_LHf=None, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt", stitch="XL1L2"):
+        super().__init__(path_L1, path_L2, path_LH, path_LHf, device=device, stitch=stitch)
         self.bounds = np.loadtxt(bounds_path)
     
     def predict(self, x):

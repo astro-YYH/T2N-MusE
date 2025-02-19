@@ -11,10 +11,13 @@ import os
 class SimpleNN(nn.Module):
     def __init__(self, num_layers, hidden_size, dim_x=1, dim_y=1, activation=nn.SiLU()):   # num_layers: number of hidden layers
         super(SimpleNN, self).__init__()
-        layers = [nn.Linear(dim_x, hidden_size), activation]
+        layers = [nn.Linear(dim_x, hidden_size)]
+        if activation is not None:
+            layers.append(activation)
         for _ in range(num_layers - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
-            layers.append(activation)
+            if activation is not None:
+                layers.append(activation)
         layers.append(nn.Linear(hidden_size, dim_y))
         self.network = nn.Sequential(*layers)
 
@@ -106,10 +109,10 @@ def find_max_batch_size(model, dataset, device, start=32, step=2):
     print(f"🎯 Optimal Batch Size Found: {best_batch}")
     return best_batch
 
-def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth'):
+def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU()):
 
     # Create the model with the given hyperparameters
-    model = SimpleNN(num_layers=num_layers, hidden_size=hidden_size, dim_x=train_x.shape[1], dim_y=train_y.shape[1]).to(device)
+    model = SimpleNN(num_layers=num_layers, hidden_size=hidden_size, dim_x=train_x.shape[1], dim_y=train_y.shape[1], activation=activation).to(device)
 
     criterion = nn.MSELoss()
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=decay)
@@ -200,7 +203,9 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
     return train_loss, val_loss
 
 # Training function with K-Fold CV
-def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True):
+def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation='SiLU'):
+    # activation function choices: 'ReLU', 'SiLU', 'Tanh', None
+    act_dict = {'ReLU': nn.ReLU(), 'SiLU': nn.SiLU(), 'Tanh': nn.Tanh(), 'None': None}
     epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
     kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
     fold_results = []
@@ -213,7 +218,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
 
         kf_model_path = os.path.join(model_dir,f"model_fold{fold}.pth")
 
-        train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path)
+        train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path, activation=act_dict[activation])
 
         fold_results.append((train_loss, val_loss))
 

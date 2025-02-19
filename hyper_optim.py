@@ -12,7 +12,7 @@ def objective(params):
     print(f"Testing with: {params}")
     
     # Train the model with K-Fold CV
-    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle)
+    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=args.activation)
 
     print(f"Validation Loss: {val_loss:.6f}\n")
 
@@ -40,7 +40,9 @@ if __name__ == "__main__":
     # epochs
     parser.add_argument('--epochs', type=int, default=None, help='Number of epochs')
     # epochs per neuron
-    parser.add_argument('--epochs_neuron', type=int, default=10, help='Number of epochs per neuron')
+    parser.add_argument('--epochs_neuron', type=int, default=20, help='Number of epochs per neuron')
+    # activation function
+    parser.add_argument('--activation', type=str, default='SiLU', help='Activation function')
 
 
     args = parser.parse_args()
@@ -125,4 +127,7 @@ if __name__ == "__main__":
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
     train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs)
 
-    print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
+    # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
+    elapsed_time = time.time() - start_time
+    formatted_time = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+    print(f"⏱ Elapsed time: {formatted_time}\n")
