@@ -185,7 +185,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
             print(f"Epoch {epoch}, Train Loss: {loss.item():.6f}, Val Loss: {val_loss:.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
             break
 
-        if epoch==0 or (epoch+1) % 100 == 0:
+        if epoch==0 or (epoch+1) % 100 == 0 or epoch == epochs-1:
             print(f"Epoch {epoch}, Train Loss: {loss.item():.6f}, Val Loss: {val_loss:.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
 
         # if epoch reached the maximum number of epochs, warn the user that the model is not converged
