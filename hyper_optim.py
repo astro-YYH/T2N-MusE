@@ -5,14 +5,14 @@ import numpy as np
 import torch
 from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
 from train_model import train_NN, train_model_kfold
-
+from mfbox import act_dict
 
 # Function to evaluate a given set of hyperparameters
 def objective(params):
     print(f"Testing with: {params}")
     
     # Train the model with K-Fold CV
-    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=args.activation)
+    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation)
 
     print(f"Validation Loss: {val_loss:.6f}\n")
 
@@ -52,6 +52,8 @@ if __name__ == "__main__":
     # load the lgk file
     if args.lgk is not None:
         lgk = np.loadtxt(args.lgk)
+
+    activation = act_dict[args.activation]
 
     # Start the timer
     start_time = time.time()  # Track start time
@@ -121,7 +123,7 @@ if __name__ == "__main__":
 
     # Evaluate the model with the best hyperparameters
     best_params = {'hidden_size': hidden_size_choices[best_hyperparams['hidden_size']], 'decay': best_hyperparams['decay'], 'num_layers': num_layers_choices[best_hyperparams['num_layers']]}
-    final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=args.activation)
+    final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -131,7 +133,7 @@ if __name__ == "__main__":
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs, activation=args.activation, lgk=lgk)
+    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs, activation=activation, lgk=lgk)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time
