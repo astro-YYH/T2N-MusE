@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
 from train_model import train_NN, train_model_kfold
+import torch.nn as nn
 
 
 # Function to evaluate a given set of hyperparameters
@@ -20,16 +21,18 @@ def objective(params):
 
 if __name__ == "__main__":
     # command line arguments
-    parser = argparse.ArgumentParser(description='Hyperparameter Optimization')
-    parser.add_argument('--trials', type=int, default=200, help='Number of trials for optimization')
+    parser = argparse.ArgumentParser(description='Train a model with a given set of hyperparameters')
+
     parser.add_argument('--model_dir', type=str, default='./', help='Path to save the model')
     # set the number of folds
-    parser.add_argument('--kfolds', type=int, default=5, help='Number of folds for K-Fold CV')
+    parser.add_argument('--kfolds', type=int, default=0, help='Number of folds for K-Fold CV')
     # shuffle k-folds or not
     parser.add_argument('--shuffle', action='store_true', help='Shuffle the data for K-Fold CV')
     # save k-fold models
     parser.add_argument('--save_kfold', action='store_true', help='Save the models for each fold')
-    parser.add_argument('--save_best', action='store_true', help='Save the best model')
+    parser.add_argument('--model_name', type=str, default='best_model', help='Name of the model')
+    parser.add_argument('--retrain', action='store_true', help='Retrain the model')
+    # parser.add_argument('--save_model', action='store_true', help='Save the model')
     # learning rate
     parser.add_argument('--lr', type=float, default=0.02, help='Learning rate')
     # input data
@@ -40,11 +43,18 @@ if __name__ == "__main__":
     # epochs
     parser.add_argument('--epochs', type=int, default=None, help='Number of epochs')
     # epochs per neuron
-    parser.add_argument('--epochs_neuron', type=int, default=20, help='Number of epochs per neuron')
+    parser.add_argument('--epochs_neuron', type=int, default=200, help='Number of epochs per neuron')
     # activation function
     parser.add_argument('--activation', type=str, default='SiLU', help='Activation function')
+    # number of hidden layers
+    parser.add_argument('--num_layers', type=int, default=1, help='Number of hidden layers')
+    # hidden size
+    parser.add_argument('--hidden_size', type=int, default=16, help='Number of neurons per hidden layer')
+    # decay
+    parser.add_argument('--decay', type=float, default=1e-4, help='AdamW weight decay')
     # lgk file
     parser.add_argument('--lgk', type=str, default=None, help='Path to the lgk file')
+
 
 
     args = parser.parse_args()
@@ -53,6 +63,11 @@ if __name__ == "__main__":
     if args.lgk is not None:
         lgk = np.loadtxt(args.lgk)
 
+    # activation function choices: 'ReLU', 'SiLU', 'Tanh', None
+    act_dict = {'ReLU': nn.ReLU(), 'SiLU': nn.SiLU(), 'Tanh': nn.Tanh(), 'None': None}
+    if args.activation not in act_dict:
+        raise ValueError(f"Activation function should be one of {list(act_dict.keys())}")
+
     # Start the timer
     start_time = time.time()  # Track start time
 
@@ -60,11 +75,23 @@ if __name__ == "__main__":
     if not os.path.exists(args.model_dir):
         os.makedirs(args.model_dir)
 
+    model_path = os.path.join(args.model_dir, f"{args.model_name}.pth")
+
     # Define the choices explicitly
-    hidden_size_choices = list(range(16, 513, 16))  # Generates [16, 32, 48, ..., 512]
-    num_layers_choices = [1, 2, 3, 4, 5]
-    # activation_choices = [nn.ReLU, nn.Tanh, nn.Sigmoid]
-    decay_lower, decay_upper = 1e-6, 1e-2
+    hidden_size = args.hidden_size
+    num_layers = args.num_layers
+    decay = args.decay
+    # if retrain is True, retrain the model with the hyperparameters from the old model
+    if args.retrain:
+        # load the old model
+        print(f"Retraining the model with the hyperparameters from the old model...")
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
+        hidden_size = checkpoint['hidden_size']
+        num_layers = checkpoint['num_layers']
+        decay = checkpoint['decay']
+        # and make a copy of the old model
+        old_model_path = os.path.join(args.model_dir, f"{args.model_name}_old.pth")
+        os.system(f"cp {model_path} {old_model_path}")
 
     # Check if GPU is available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -93,45 +120,22 @@ if __name__ == "__main__":
     x_tensor = x_tensor.to(device)
     y_tensor = y_tensor.to(device)
 
-    # Define the hyperparameter search space
-    space = {
-        'num_layers': hp.choice('num_layers', num_layers_choices),  # Number of hidden layers
-        'hidden_size': hp.choice('hidden_size', hidden_size_choices),  # Neurons per layer
-        'decay': hp.loguniform('decay', np.log(decay_lower), np.log(decay_upper))  # L2 regularization strength
-    }
-
-    # find the optimal batch size according to the largest model
-    # model = SimpleNN(num_layers=np.max(num_layers_choices), hidden_size=np.max(num_layers_choices), dim_x=x_tensor.shape[1], dim_y=y_tensor.shape[1]).to(device)
-    # best_batch = find_max_batch_size(model, TensorDataset(x_tensor, y_tensor), device=device)  # our dataset is small, so we can use full-batch training
-
     # Create a trials object to store optimization history
     trials = Trials()
 
-    # Run Bayesian optimization
-    best_hyperparams = fmin(
-        fn=objective,        # Function to minimize (validation loss)
-        space=space,         # Hyperparameter search space
-        algo=tpe.suggest,    # Tree-structured Parzen Estimator (TPE)
-        max_evals=args.trials,        # Number of trials to run
-        trials=trials        # Store results
-    )
+    print("\n🎯 Hyperparameters:")
+    print('hidden_size', hidden_size, 'decay', decay, 'num_layers', num_layers)
 
-    print("\n🎯 Best Hyperparameters Found:")
-    print('hidden_size', hidden_size_choices[best_hyperparams['hidden_size']], 'decay', best_hyperparams['decay'], 'num_layers', num_layers_choices[best_hyperparams['num_layers']])
-
-    # Evaluate the model with the best hyperparameters
-    best_params = {'hidden_size': hidden_size_choices[best_hyperparams['hidden_size']], 'decay': best_hyperparams['decay'], 'num_layers': num_layers_choices[best_hyperparams['num_layers']]}
-    final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=args.activation)
+    # if kfolds > 0, perform K-Fold CV
+    if args.kfolds > 0:
+        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
     # train the model on the full dataset
 
-    model_path = os.path.join(args.model_dir, 'best_model.pth')
-
-    print(f"Training the model on the full dataset with the best hyperparameters...")
-    epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs, activation=args.activation, lgk=lgk)
+    epochs = args.epochs if args.epochs is not None else args.epochs_neuron * hidden_size * num_layers
+    train_loss, _ = train_NN(num_layers, hidden_size, x_tensor, y_tensor, decay=decay, device=device, save_model=True, model_path=model_path, lr=args.lr, epochs=epochs, activation=act_dict[args.activation], lgk=lgk)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time

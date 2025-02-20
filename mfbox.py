@@ -2,6 +2,9 @@ import os
 import torch
 import numpy as np
 from train_model import SimpleNN
+import torch.nn as nn
+
+act_dict = {'ReLU': nn.ReLU(), 'SiLU': nn.SiLU(), 'Tanh': nn.Tanh(), 'None': None}
 
 def extract_input_output_dims(state_dict):
     dim_x, dim_y = None, None
@@ -13,9 +16,11 @@ def extract_input_output_dims(state_dict):
     return dim_x, dim_y
 
 def load_model(path, device='cpu'):
-    checkpoint = torch.load(path, weights_only=True, map_location=device)
+    checkpoint = torch.load(path, weights_only=False, map_location=device)
     dim_x, dim_y = extract_input_output_dims(state_dict=checkpoint['state_dict'])
-    model = SimpleNN(num_layers=checkpoint['num_layers'], hidden_size=checkpoint['hidden_size'], dim_x=dim_x, dim_y=dim_y).to(device)
+    # activation
+    activation = act_dict[checkpoint['activation']]
+    model = SimpleNN(num_layers=checkpoint['num_layers'], hidden_size=checkpoint['hidden_size'], dim_x=dim_x, dim_y=dim_y, activation=activation).to(device)
 
     # Load the model weights
     model.load_state_dict(checkpoint['state_dict'])
@@ -130,7 +135,7 @@ class gokunet(mfbox):
     
 # define doublefid: LF and HF
 class doublefid:
-    def __init__(self, path_LF, path_LH, device='cpu'):
+    def __init__(self, path_LF, path_LH, device='cpu', k_region='A'): # k_region: 'A' or 'B', temporary solution
         self.device = torch.device(device)
 
         # Load the saved model dictionary
@@ -139,8 +144,11 @@ class doublefid:
         self.model_LF.eval()
         self.model_HF.eval()
 
-        self.lgk_LF = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt") # use this for now, will be replaced later
-        self.lgk_HF = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt")
+        k_mid = 32
+        if k_region == 'A':
+            self.lgk = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt")[:k_mid] # use this for now, will be replaced later
+        else:
+            self.lgk = np.loadtxt("./data/pre_N_L-H_stitch_z0/kf.txt")[k_mid:]
     
     def predict(self, x):
         # Convert to tensor
@@ -151,7 +159,7 @@ class doublefid:
         x_LH = torch.cat((x_tensor, y_LF), dim=1)
         y_HF = self.model_HF(x_LH)
 
-        return self.lgk_HF, y_HF.detach().cpu().numpy()
+        return self.lgk, y_HF.detach().cpu().numpy()
     
     def predict_LF(self, x):
         # Convert to tensor
@@ -160,12 +168,12 @@ class doublefid:
         # Make predictions
         y = self.model_LF(x_tensor).detach().cpu().numpy()
 
-        return self.lgk_LF, y
+        return self.lgk, y
     
 # define gokunet_df based on doublefid
 class gokunet_df(doublefid):
-    def __init__(self, path_LF, path_LH, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
-        super().__init__(path_LF, path_LH, device=device)
+    def __init__(self, path_LF, path_LH, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt", k_region='A'):
+        super().__init__(path_LF, path_LH, device=device, k_region=k_region)
         self.bounds = np.loadtxt(bounds_path)
     
     def predict(self, x):
@@ -185,8 +193,8 @@ class gokunet_df(doublefid):
 # define gokunet-split based on gokunet_df
 class gokunet_split():
     def __init__(self, path_LA, path_HA, path_LB, path_HB, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
-        self.part_A = gokunet_df(path_LA, path_HA, device=device, bounds_path=bounds_path)
-        self.part_B = gokunet_df(path_LB, path_HB, device=device, bounds_path=bounds_path)
+        self.part_A = gokunet_df(path_LA, path_HA, device=device, bounds_path=bounds_path, k_region='A')
+        self.part_B = gokunet_df(path_LB, path_HB, device=device, bounds_path=bounds_path, k_region='B')
 
     def predict_LA(self, x):
         return self.part_A.predict_LF(x)

@@ -7,6 +7,7 @@ from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, TensorDataset
 import os
 
+
 # Define a neural network model
 class SimpleNN(nn.Module):
     def __init__(self, num_layers, hidden_size, dim_x=1, dim_y=1, activation=nn.SiLU()):   # num_layers: number of hidden layers
@@ -109,7 +110,7 @@ def find_max_batch_size(model, dataset, device, start=32, step=2):
     print(f"🎯 Optimal Batch Size Found: {best_batch}")
     return best_batch
 
-def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU()):
+def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None):  # lgk is not used for training, but saved for later use
 
     # Create the model with the given hyperparameters
     model = SimpleNN(num_layers=num_layers, hidden_size=hidden_size, dim_x=train_x.shape[1], dim_y=train_y.shape[1], activation=activation).to(device)
@@ -191,11 +192,15 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         # if epoch reached the maximum number of epochs, warn the user that the model is not converged
         if epoch == epochs - 1:
             print("⚠ Maximum number of epochs reached. The model may not have converged.\n")
-
+    
     if save_model:
         torch.save({
             'num_layers': num_layers,
             'hidden_size': hidden_size,
+            'activation': activation.__class__.__name__ if activation is not None else 'None', # save activation function as string
+            'decay': decay,
+            'lgk': lgk,
+            'training_loss': train_loss,
             'state_dict': model.state_dict()
         }, model_path)
         print(f"Model saved to {model_path}\n")
@@ -203,9 +208,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
     return train_loss, val_loss
 
 # Training function with K-Fold CV
-def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation='SiLU'):
-    # activation function choices: 'ReLU', 'SiLU', 'Tanh', None
-    act_dict = {'ReLU': nn.ReLU(), 'SiLU': nn.SiLU(), 'Tanh': nn.Tanh(), 'None': None}
+def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation=nn.SiLU()):
     epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
     kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
     fold_results = []
@@ -218,7 +221,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
 
         kf_model_path = os.path.join(model_dir,f"model_fold{fold}.pth")
 
-        train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path, activation=act_dict[activation])
+        train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path, activation=activation)
 
         fold_results.append((train_loss, val_loss))
 
