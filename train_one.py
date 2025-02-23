@@ -7,18 +7,6 @@ from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
 from train_model import train_NN, train_model_kfold
 import torch.nn as nn
 
-
-# Function to evaluate a given set of hyperparameters
-def objective(params):
-    print(f"Testing with: {params}")
-    
-    # Train the model with K-Fold CV
-    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=args.activation)
-
-    print(f"Validation Loss: {val_loss:.6f}\n")
-
-    return {'loss': val_loss, 'status': STATUS_OK}
-
 if __name__ == "__main__":
     # command line arguments
     parser = argparse.ArgumentParser(description='Train a model with a given set of hyperparameters')
@@ -85,10 +73,14 @@ if __name__ == "__main__":
     if args.retrain:
         # load the old model
         print(f"Retraining the model with the hyperparameters from the old model...")
-        checkpoint = torch.load(model_path, map_location='cpu', weights_only=True)
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
         hidden_size = checkpoint['hidden_size']
         num_layers = checkpoint['num_layers']
         decay = checkpoint['decay']
+        # lgk
+        lgk = checkpoint['lgk']
+        # activation
+        activation = checkpoint['activation']
         # and make a copy of the old model
         old_model_path = os.path.join(args.model_dir, f"{args.model_name}_old.pth")
         os.system(f"cp {model_path} {old_model_path}")
