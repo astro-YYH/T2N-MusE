@@ -110,13 +110,55 @@ def find_max_batch_size(model, dataset, device, start=32, step=2):
     print(f"🎯 Optimal Batch Size Found: {best_batch}")
     return best_batch
 
-def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None):  # lgk is not used for training, but saved for later use
+def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True):
+    center_x = None
+    center_y = None
+    if zero_centering: # x and y
+        center_x = train_x.mean(dim=0, keepdim=True)
+        train_x = train_x - center_x
+
+        # check if x includes y_LF 
+        # if train_x.shape[1] > train_y.shape[1]:
+        #     center_y = center_x[:, -train_y.shape[1]:]
+        # else:
+        #     center_y = train_y.mean(dim=0, keepdim=True)
+        center_y = train_y.mean(dim=0, keepdim=True)
+
+        train_y = train_y - center_y
+
+        if val_x is not None and val_y is not None:
+            val_x = val_x - center_x
+            val_y = val_y - center_y
+
+    # lgk is not used for training, but saved for later use
 
     # Create the model with the given hyperparameters
     model = SimpleNN(num_layers=num_layers, hidden_size=hidden_size, dim_x=train_x.shape[1], dim_y=train_y.shape[1], activation=activation).to(device)
 
     criterion = nn.MSELoss()
-    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=decay)
+    penalty = 0
+
+    def penalty():
+        if L2_reg:
+            l2_norm = sum(torch.sum(param ** 2) for param in model.parameters())
+            penalty = decay * l2_norm
+            return penalty
+        else:
+            return 0
+    
+    # if L2_reg:
+    #     l2_lambda = decay  # Use weight decay value for L2 regularization
+
+
+    #     l2_norm = sum(torch.sum(param ** 2) for param in model.parameters())  # Compute L2 norm
+    #     penalty = l2_lambda * l2_norm  # Compute total loss
+
+
+    #     optimizer = optim.Adam(model.parameters(), lr=lr)  # No weight decay
+    # else:
+        
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0 if L2_reg else decay)  # Use weight decay for L2 regularization
+
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=40)
 
@@ -152,7 +194,8 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         if use_full_batch:
             optimizer.zero_grad()
             y_pred = model(train_x)
-            loss = criterion(y_pred, train_y)
+            train_loss = criterion(y_pred, train_y)
+            loss = train_loss + penalty()
             loss.backward()
             optimizer.step()
         else:
@@ -161,7 +204,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
                 
                 optimizer.zero_grad()
                 y_pred = model(batch_x)
-                loss_batch = criterion(y_pred, batch_y)
+                loss_batch = criterion(y_pred, batch_y) + penalty()
                 loss_batch.backward()
                 optimizer.step()
 
@@ -170,8 +213,9 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         with torch.no_grad():
             if not use_full_batch:
                 train_pred = model(train_x.to(device))
-                loss = criterion(train_pred, train_y.to(device))
-            train_loss = loss.item()
+                train_loss = criterion(train_pred, train_y.to(device)).item()
+            else:
+                train_loss = train_loss.item()
             if val_x is not None and val_y is not None:
                 val_pred = model(val_x)
                 val_loss = criterion(val_pred, val_y).item()
@@ -183,11 +227,11 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         # Check early stopping condition
         if early_stopping.step(val_loss+train_loss):   # sum of train and val loss (should be more stable)
             print(f"Stopping early at epoch {epoch}")
-            print(f"Epoch {epoch}, Train Loss: {loss.item():.6f}, Val Loss: {val_loss:.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
+            print(f"Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, Train loss with L2: {loss.item():.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
             break
 
         if epoch==0 or (epoch+1) % 100 == 0 or epoch == epochs-1:
-            print(f"Epoch {epoch}, Train Loss: {loss.item():.6f}, Val Loss: {val_loss:.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
+            print(f"Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, Train loss with L2: {loss.item():.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
 
         # if epoch reached the maximum number of epochs, warn the user that the model is not converged
         if epoch == epochs - 1:
@@ -201,6 +245,8 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
             'decay': decay,
             'lgk': lgk,
             'training_loss': train_loss,
+            'center_x': center_x.cpu().numpy() if center_x is not None else None,  # Ensure it's a NumPy array
+            'center_y': center_y.cpu().numpy() if center_y is not None else None,  # Convert before saving
             'state_dict': model.state_dict()
         }, model_path)
         print(f"Model saved to {model_path}\n")
@@ -208,7 +254,8 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
     return train_loss, val_loss
 
 # Training function with K-Fold CV
-def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation=nn.SiLU()):
+def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation=nn.SiLU(), standardize=False, zero_centering=False):
+
     epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
     kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
     fold_results = []
@@ -221,7 +268,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
 
         kf_model_path = os.path.join(model_dir,f"model_fold{fold}.pth")
 
-        train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path, activation=activation)
+        train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path, activation=activation, zero_centering=zero_centering)
 
         fold_results.append((train_loss, val_loss))
 

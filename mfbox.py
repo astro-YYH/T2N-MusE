@@ -6,6 +6,80 @@ import torch.nn as nn
 
 act_dict = {'ReLU': nn.ReLU(), 'SiLU': nn.SiLU(), 'Tanh': nn.Tanh(), 'None': None}
 
+import torch
+import torch.nn as nn
+
+class RescaledNN(SimpleNN):
+    def __init__(self, num_layers, hidden_size, dim_x=1, dim_y=1, activation=nn.SiLU(), center_x=None, center_y=None, device='cpu'):
+        """
+        A neural network that automatically applies zero-centering during training
+        and reverses the transformation during inference.
+        
+        Args:
+            num_layers (int): Number of hidden layers.
+            hidden_size (int): Number of neurons per hidden layer.
+            dim_x (int): Input feature dimension.
+            dim_y (int): Output feature dimension.
+            activation (nn.Module): Activation function (default: SiLU).
+            center_x (torch.Tensor, optional): Mean of input data used for zero-centering.
+            center_y (torch.Tensor, optional): Mean of output data used for zero-centering.
+            device (str): Device for computation ('cpu' or 'cuda').
+        """
+        super().__init__(num_layers, hidden_size, dim_x, dim_y, activation)
+        self.center_x = center_x.to(device) if center_x is not None else None
+        self.center_y = center_y.to(device) if center_y is not None else None
+        self.device = device  # Ensure device consistency
+
+    def forward(self, x):
+        """
+        Forward pass with input rescaling.
+        """
+        if self.center_x is not None:
+            x = x - self.center_x  # Apply zero-centering
+        y_pred = super().forward(x)  # Pass through the base network
+        if self.center_y is not None:
+            y_pred = y_pred + self.center_y  # Reverse zero-centering for output
+        return y_pred
+
+    @classmethod
+    def from_checkpoint(cls, path, device='cpu'):
+        """
+        Load a model from a saved checkpoint, including rescaling parameters.
+
+        Args:
+            path (str): Path to the saved model checkpoint.
+            device (str): Device to load the model onto ('cpu' or 'cuda').
+
+        Returns:
+            RescaledNN instance
+        """
+        checkpoint = torch.load(path, map_location=device)
+        dim_x, dim_y = extract_input_output_dims(state_dict=checkpoint['state_dict'])
+
+        # Activation function lookup
+        activation = act_dict.get(checkpoint['activation'], nn.SiLU())  # Default to SiLU if missing
+        
+        # Convert center_x and center_y back to tensors
+        # check if center_x and center_y exist
+        if 'center_x' in checkpoint:
+            center_x = torch.tensor(checkpoint['center_x'], dtype=torch.float32, device=device) if checkpoint['center_x'] is not None else None
+            center_y = torch.tensor(checkpoint['center_y'], dtype=torch.float32, device=device) if checkpoint['center_y'] is not None else None
+        else:
+            center_x, center_y = None, None
+
+        # Create an instance of RescaledNN
+        model = cls(num_layers=checkpoint['num_layers'], hidden_size=checkpoint['hidden_size'],
+                    dim_x=dim_x, dim_y=dim_y, activation=activation, center_x=center_x, center_y=center_y, device=device)
+        
+        model.load_state_dict(checkpoint['state_dict'])  # Load weights
+        model.to(device)
+
+        # load lgk
+        lgk = checkpoint['lgk']
+
+        return lgk, model
+
+
 def extract_input_output_dims(state_dict):
     dim_x, dim_y = None, None
     for key in state_dict:
@@ -16,18 +90,23 @@ def extract_input_output_dims(state_dict):
     return dim_x, dim_y
 
 def load_model(path, device='cpu'):
-    checkpoint = torch.load(path, weights_only=False, map_location=device)
-    dim_x, dim_y = extract_input_output_dims(state_dict=checkpoint['state_dict'])
-    # activation
-    activation = act_dict[checkpoint['activation']]
-    model = SimpleNN(num_layers=checkpoint['num_layers'], hidden_size=checkpoint['hidden_size'], dim_x=dim_x, dim_y=dim_y, activation=activation).to(device)
+    # checkpoint = torch.load(path, weights_only=False, map_location=device)
+    # dim_x, dim_y = extract_input_output_dims(state_dict=checkpoint['state_dict'])
+    # # activation
+    # activation = act_dict[checkpoint['activation']]
+    # model = SimpleNN(num_layers=checkpoint['num_layers'], hidden_size=checkpoint['hidden_size'], dim_x=dim_x, dim_y=dim_y, activation=activation).to(device)
 
-    # Load the model weights
-    model.load_state_dict(checkpoint['state_dict'])
-    # load lgk
-    lgk = checkpoint['lgk']
+    # # Load the model weights
+    # model.load_state_dict(checkpoint['state_dict'])
+    # # load lgk
+    # lgk = checkpoint['lgk']
 
-    return lgk, model
+    # center_x = checkpoint['center_x']
+    # center_y = checkpoint['center_y']
+
+    return RescaledNN.from_checkpoint(path, device=device)
+
+    # return lgk, model
 
 class singlefid:
     def __init__(self, path, device='cpu'):
@@ -262,12 +341,13 @@ class gokunet_alpha():
         return self.model_L2.predict(x)
     
     def predict(self, x):
+        k_A, y_LA = self.part_A.predict_LF(x)
         k_A, y_A = self.part_A.predict(x)
         k_L2, y_L2 = self.model_L2.predict(x)
 
-        lgy_A = np.log10(y_A) 
+        lgy_LA = np.log10(y_LA) 
         lgy_L2 = np.log10(y_L2) 
-        x_xL1AL2B = np.concatenate((x, lgy_A, lgy_L2[:,lgy_L2.shape[1]//2:]), axis=1) # temporary solution 
+        x_xL1AL2B = np.concatenate((x, lgy_LA, lgy_L2[:,lgy_L2.shape[1]//2:]), axis=1) # temporary solution 
         _, y_H_forB = self.model_LH.predict(x_xL1AL2B)
         # _, y_H_forB = self.model_LH.predict(x)
         # combine with y_A

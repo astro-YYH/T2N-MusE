@@ -42,6 +42,8 @@ if __name__ == "__main__":
     parser.add_argument('--decay', type=float, default=1e-4, help='AdamW weight decay')
     # lgk file
     parser.add_argument('--lgk', type=str, default=None, help='Path to the lgk file')
+    parser.add_argument('--zero_centering', action='store_true', help='Zero-center the output data')
+    parser.add_argument('--standardize', action='store_true', help='Standardize the output data')
 
 
 
@@ -120,14 +122,14 @@ if __name__ == "__main__":
 
     # if kfolds > 0, perform K-Fold CV
     if args.kfolds > 0:
-        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle)
+        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, standardize=args.standardize, activation=act_dict[args.activation])
 
     # train and save the model with the best hyperparameters
     # Save the model if required
     # train the model on the full dataset
 
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * hidden_size * num_layers
-    train_loss, _ = train_NN(num_layers, hidden_size, x_tensor, y_tensor, decay=decay, device=device, save_model=True, model_path=model_path, lr=args.lr, epochs=epochs, activation=act_dict[args.activation], lgk=lgk)
+    train_loss, _ = train_NN(num_layers, hidden_size, x_tensor, y_tensor, decay=decay, device=device, save_model=True, model_path=model_path, lr=args.lr, epochs=epochs, activation=act_dict[args.activation], lgk=lgk, zero_centering=args.zero_centering)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time

@@ -12,7 +12,7 @@ def objective(params):
     print(f"Testing with: {params}")
     
     # Train the model with K-Fold CV
-    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation)
+    val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering)
 
     print(f"Validation Loss: {val_loss:.6f}\n")
 
@@ -45,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument('--activation', type=str, default='SiLU', help='Activation function')
     # lgk file
     parser.add_argument('--lgk', type=str, default=None, help='Path to the lgk file')
+    parser.add_argument('--zero_centering', action='store_true', help='Zero-center the output data')
 
 
     args = parser.parse_args()
@@ -64,9 +65,9 @@ if __name__ == "__main__":
 
     # Define the choices explicitly
     hidden_size_choices = list(range(16, 513, 16))  # Generates [16, 32, 48, ..., 512]
-    num_layers_choices = [1, 2, 3, 4, 5]
+    num_layers_choices = [1, 2, 3, 4, 5, 6]
     # activation_choices = [nn.ReLU, nn.Tanh, nn.Sigmoid]
-    decay_lower, decay_upper = 1e-6, 1e-2
+    decay_lower, decay_upper = 1e-7, 1e-3
 
     # Check if GPU is available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -123,7 +124,7 @@ if __name__ == "__main__":
 
     # Evaluate the model with the best hyperparameters
     best_params = {'hidden_size': hidden_size_choices[best_hyperparams['hidden_size']], 'decay': best_hyperparams['decay'], 'num_layers': num_layers_choices[best_hyperparams['num_layers']]}
-    final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation)
+    final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -133,7 +134,7 @@ if __name__ == "__main__":
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs, activation=activation, lgk=lgk)
+    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time
