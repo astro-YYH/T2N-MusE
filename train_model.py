@@ -26,7 +26,7 @@ class SimpleNN(nn.Module):
         return self.network(x)
 
 class EarlyStopping:
-    def __init__(self, patience=50, fraction=0.005):
+    def __init__(self, patience=50, fraction=0.001):
         """
         Early stopping with a relative threshold.
 
@@ -222,10 +222,10 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
             else:
                 val_loss = train_loss
 
-        scheduler.step(val_loss+train_loss)
+        scheduler.step(val_loss+loss.item())
 
         # Check early stopping condition
-        if early_stopping.step(val_loss+train_loss):   # sum of train and val loss (should be more stable)
+        if early_stopping.step(val_loss+loss.item()):   # sum of train and val loss (should be more stable)
             print(f"Stopping early at epoch {epoch}")
             print(f"Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, Train loss with L2: {loss.item():.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
             break
@@ -254,7 +254,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
     return train_loss, val_loss
 
 # Training function with K-Fold CV
-def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation=nn.SiLU(), standardize=False, zero_centering=False):
+def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False):
 
     epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
     kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
