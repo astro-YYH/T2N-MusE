@@ -275,9 +275,11 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
         
 
     avg_val_loss = np.mean([val_loss for _, val_loss in fold_results])
-    print(f"✅ Average Validation Loss Across {k} Folds: {avg_val_loss:.6f}\n")
+    avg_train_loss = np.mean([train_loss for train_loss, _ in fold_results])
 
-    return avg_val_loss
+    print(f"✅ Average Loss Across {k} Folds: training: {avg_train_loss:.6f}, validation: {avg_val_loss:.6f}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6f}\n")
+
+    return avg_train_loss, avg_val_loss
 
 
 

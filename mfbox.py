@@ -352,6 +352,7 @@ class gokunet_alpha():
         # _, y_H_forB = self.model_LH.predict(x)
         # combine with y_A
         y = np.concatenate((y_A, y_H_forB[:, (y_H_forB.shape[1])//2:]), axis=1)
+        # y = y_H_forB
         k = np.concatenate((k_A, k_L2[len(k_L2)//2:]))  # temporary solution
         return k, y
     

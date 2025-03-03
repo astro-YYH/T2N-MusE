@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
     # if kfolds > 0, perform K-Fold CV
     if args.kfolds > 0:
-        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, standardize=args.standardize, activation=act_dict[args.activation])
+        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=act_dict[args.activation], zero_centering=args.zero_centering)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
