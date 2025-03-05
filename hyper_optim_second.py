@@ -71,10 +71,10 @@ if __name__ == "__main__":
         os.makedirs(args.model_dir)
 
     # Define the choices explicitly
-    hidden_size_choices = list(range(16, 513, 16))  # Generates [16, 32, 48, ..., 512]
-    num_layers_choices = [1, 2, 3, 4, 5, 6, 7]
+    hidden_size_choices = list(range(496-16, 496+17, 2))  # Generates [16, 32, 48, ..., 512]
+    num_layers_choices = [1, 2]
     # activation_choices = [nn.ReLU, nn.Tanh, nn.Sigmoid]
-    decay_lower, decay_upper = 1e-7, 1e-4
+    decay_lower, decay_upper = 1e-6, 1e-4
 
     # Check if GPU is available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -119,43 +119,12 @@ if __name__ == "__main__":
 
     # Run Bayesian optimization
     best_hyperparams = fmin(
-        fn=objective,        # Function to minimize (training + validation loss)
+        fn=objective,        # Function to minimize (validation loss)
         space=space,         # Hyperparameter search space
         algo=tpe.suggest,    # Tree-structured Parzen Estimator (TPE)
         max_evals=args.trials,        # Number of trials to run
         trials=trials        # Store results
     )
-    best_hidden_size = hidden_size_choices[best_hyperparams['hidden_size']]
-    best_num_layers = num_layers_choices[best_hyperparams['num_layers']]
-    best_decay = best_hyperparams['decay']
-
-    print("\n🎯 Best Hyperparameters Found in First Round:")
-    print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
-
-    # Define a refined search space
-    hidden_size_choices_fine = list(range(max(16, best_hidden_size - 32), min(512, best_hidden_size + 32), 2))  
-    num_layers_choices_fine = list(range(max(1, best_num_layers - 1), min(7, best_num_layers + 1) + 1))
-    decay_lower_fine = best_decay / 3  # Search around the best decay
-    decay_upper_fine = best_decay * 3  
-
-    space_fine = {
-        'num_layers': hp.choice('num_layers', num_layers_choices_fine),
-        'hidden_size': hp.choice('hidden_size', hidden_size_choices_fine),
-        'decay': hp.loguniform('decay', np.log(decay_lower_fine), np.log(decay_upper_fine))
-    }
-
-    # Run the second optimization round
-    trials_fine = Trials()
-    best_hyperparams_fine = fmin(
-        fn=objective,
-        space=space_fine,
-        algo=tpe.suggest,
-        max_evals=int(args.trials / 2),  # Fewer trials for fine-tuning
-        trials=trials_fine
-    )
-
-    # ✅ Directly assign the fine-tuned best hyperparameters
-    best_hyperparams = best_hyperparams_fine
 
     print("\n🎯 Best Hyperparameters Found:")
     print('hidden_size', hidden_size_choices[best_hyperparams['hidden_size']], 'decay', best_hyperparams['decay'], 'num_layers', num_layers_choices[best_hyperparams['num_layers']])

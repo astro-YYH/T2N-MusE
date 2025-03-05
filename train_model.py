@@ -6,7 +6,15 @@ import numpy as np
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, TensorDataset
 import os
+import random
 
+def set_seed(seed=42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False  # Ensures reproducibility
 
 # Define a neural network model
 class SimpleNN(nn.Module):
@@ -111,6 +119,8 @@ def find_max_batch_size(model, dataset, device, start=32, step=2):
     return best_batch
 
 def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True):
+    set_seed(42) # Set seed for reproducibility
+
     center_x = None
     center_y = None
     if zero_centering: # x and y
@@ -271,8 +281,6 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
         train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path, activation=activation, zero_centering=zero_centering)
 
         fold_results.append((train_loss, val_loss))
-
-        
 
     avg_val_loss = np.mean([val_loss for _, val_loss in fold_results])
     avg_train_loss = np.mean([train_loss for train_loss, _ in fold_results])
