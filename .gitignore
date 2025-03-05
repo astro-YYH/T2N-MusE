@@ -1,3 +1,4 @@
 *.out
 *local*
 __pycache__
+*scratch*
