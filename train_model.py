@@ -237,11 +237,11 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         # Check early stopping condition
         if early_stopping.step(val_loss+loss.item()):   # sum of train and val loss (should be more stable)
             print(f"Stopping early at epoch {epoch}")
-            print(f"Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, Train loss with L2: {loss.item():.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
+            print(f"Epoch {epoch}, Train Loss: {train_loss:.6e}, Val Loss: {val_loss:.6e}, Train loss with L2: {loss.item():.6e}, LR: {optimizer.param_groups[0]['lr']:.6e}")
             break
 
         if epoch==0 or (epoch+1) % 100 == 0 or epoch == epochs-1:
-            print(f"Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}, Train loss with L2: {loss.item():.6f}, LR: {optimizer.param_groups[0]['lr']:.6f}")
+            print(f"Epoch {epoch}, Train Loss: {train_loss:.6e}, Val Loss: {val_loss:.6e}, Train loss with L2: {loss.item():.6e}, LR: {optimizer.param_groups[0]['lr']:.6e}")
 
         # if epoch reached the maximum number of epochs, warn the user that the model is not converged
         if epoch == epochs - 1:
@@ -285,7 +285,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
     avg_val_loss = np.mean([val_loss for _, val_loss in fold_results])
     avg_train_loss = np.mean([train_loss for train_loss, _ in fold_results])
 
-    print(f"✅ Average Loss Across {k} Folds: training: {avg_train_loss:.6f}, validation: {avg_val_loss:.6f}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6f}\n")
+    print(f"✅ Average Loss Across {k} Folds: training: {avg_train_loss:.6e}, validation: {avg_val_loss:.6e}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6e}\n")
 
     return avg_train_loss, avg_val_loss
 

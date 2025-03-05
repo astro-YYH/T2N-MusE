@@ -150,7 +150,7 @@ if __name__ == "__main__":
         fn=objective,
         space=space_fine,
         algo=tpe.suggest,
-        max_evals=int(args.trials / 2),  # Fewer trials for fine-tuning
+        max_evals=max(int(args.trials / 2),1),  # Fewer trials for fine-tuning
         trials=trials_fine
     )
 
