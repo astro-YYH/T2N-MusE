@@ -133,8 +133,8 @@ if __name__ == "__main__":
     print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
     # Define a refined search space
-    hidden_size_choices_fine = list(range(max(16, best_hidden_size - 32), min(512, best_hidden_size + 32), 2))  
-    num_layers_choices_fine = list(range(max(1, best_num_layers - 1), min(7, best_num_layers + 1) + 1))
+    hidden_size_choices_fine = list(range(max(16, best_hidden_size - 32), (best_hidden_size + 32), 2))  
+    num_layers_choices_fine = list(range(max(1, best_num_layers - 1), ((best_num_layers + 1) + 1)))
     decay_lower_fine = best_decay / 3  # Search around the best decay
     decay_upper_fine = best_decay * 3  
 
@@ -156,12 +156,13 @@ if __name__ == "__main__":
 
     # ✅ Directly assign the fine-tuned best hyperparameters
     best_hyperparams = best_hyperparams_fine
-
+    best_params_fine = {'hidden_size': hidden_size_choices_fine[best_hyperparams['hidden_size']], 'decay': best_hyperparams['decay'], 'num_layers': num_layers_choices_fine[best_hyperparams['num_layers']]}
+    best_params = best_params_fine
+    
     print("\n🎯 Best Hyperparameters Found:")
-    print('hidden_size', hidden_size_choices[best_hyperparams['hidden_size']], 'decay', best_hyperparams['decay'], 'num_layers', num_layers_choices[best_hyperparams['num_layers']])
+    print('hidden_size', best_params['hidden_size'], 'decay', best_params['decay'], 'num_layers', best_params['num_layers'])
 
     # Evaluate the model with the best hyperparameters
-    best_params = {'hidden_size': hidden_size_choices[best_hyperparams['hidden_size']], 'decay': best_hyperparams['decay'], 'num_layers': num_layers_choices[best_hyperparams['num_layers']]}
     final_train_loss, final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering)
 
     # train and save the model with the best hyperparameters

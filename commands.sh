@@ -4,8 +4,8 @@ python hyper_optim.py --trials=100 --data_x=./data/narrow/matter_power_297_Box10
 L1A:
 python hyper_optim.py --trials=50 --data_x=./data/pre_N_L1A_z0/train_input.txt --data_y=./data/pre_N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --save_kfold --model_dir=models/pre_N_L1A_z0 --save_best --lr=0.02 --kfolds=27
 python hyper_optim.py --trials=80 --data_x=./data/pre_N_L1A_z0/train_input.txt --data_y=./data/pre_N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --save_kfold --model_dir=models/pre_N_L1A_z0_0c --save_best --lr=0.02 --kfolds=27 --lgk=./data/pre_N_L1A_z0/kf.txt --zero_centering
-python train_one.py --data_x=./data/pre_N_L1A_z0/train_input.txt --data_y=./data/pre_N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_L1A_z0 --lr=0.01 --num_layers=2 --hidden_size=144 --decay=0.0001682765513440639 --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt 
-python train_one.py --data_x=./data/pre_N_L1A_z0/train_input.txt --data_y=./data/pre_N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_L1A_z0_0c --lr=0.01 --retrain --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt --zero_centering
+python train_one.py --data_x=./data/pre_N_L1A_z0/train_input.txt --data_y=./data/pre_N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_L1A_z0 --lr=0.01 --num_layers=2 --hidden_size=16 --decay=5.798482553189827e-07 --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt --kfold=27
+python train_one.py --data_x=./data/pre_N_L1A_z0/train_input.txt --data_y=./data/pre_N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_L1A_z0_0c --lr=0.01 --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt --zero_centering --num_layers=2 --hidden_size=16 --decay=5.798482553189827e-07
 
 L2:
 python hyper_optim.py --trials=80 --data_x=./data/narrow/matter_power_297_Box25_Part75_27_Box100_Part300_z0/train_input_fidelity_0.txt --data_y=./data/narrow/matter_power_297_Box25_Part75_27_Box100_Part300_z0/train_output_fidelity_0.txt --bound_x=./data/narrow/matter_power_297_Box25_Part75_27_Box100_Part300_z0/input_limits.txt --save_kfold --model_dir=models/pre_N_L2_z0 --save_best --lr=0.02 --kfolds=27 --lgk=./data/narrow/matter_power_297_Box25_Part75_27_Box100_Part300_z0/kf.txt 
@@ -34,7 +34,7 @@ L1HA:
 python hyper_optim.py --trials=80 --data_x=./data/pre_N_LHA_z0/train_input.txt --data_y=./data/pre_N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --save_kfold --model_dir=models/pre_N_LHA_z0 --save_best --lr=0.02 --kfolds=27 --lgk=./data/pre_N_L1A_z0/kf.txt
 python hyper_optim.py --trials=60 --data_x=./data/pre_N_LHA_z0/train_input.txt --data_y=./data/pre_N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --save_kfold --model_dir=models/pre_N_LHA_z0_0c --save_best --lr=0.02 --kfolds=27 --lgk=./data/pre_N_L1A_z0/kf.txt --zero_centering
 python hyper_optim_second.py --trials=40 --data_x=./data/pre_N_LHA_z0/train_input.txt --data_y=./data/pre_N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --save_kfold --model_dir=models/pre_N_LHA_z0_0c --save_best --lr=0.02 --kfolds=27 --lgk=./data/pre_N_L1A_z0/kf.txt --zero_centering
-python train_one.py --data_x=./data/pre_N_LHA_z0/train_input.txt --data_y=./data/pre_N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_LHA_z0 --lr=0.01 --num_layers=2 --hidden_size=32 --decay=1.0016262573705154e-06 --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt 
+python train_one.py --data_x=./data/pre_N_LHA_z0/train_input.txt --data_y=./data/pre_N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_LHA_z0 --lr=0.01 --num_layers=2 --hidden_size=246 --decay=8.340985520896358e-07 --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt  --kfold=27
 python train_one.py --data_x=./data/pre_N_LHA_z0/train_input.txt --data_y=./data/pre_N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_LHA_z0_0c --lr=0.01 --retrain --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt --zero_centering --kfolds=27
 python train_one.py --data_x=./data/pre_N_LHA_z0/train_input.txt --data_y=./data/pre_N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_297_Box100_Part75_27_Box100_Part300_z0/input_limits.txt --model_dir=models/pre_N_LHA_z0_0c --lr=0.01 --hidden_size=496 --decay=3.09090682346284e-05 --num_layers=1 --model_name=best_model --lgk=./data/pre_N_L1A_z0/kf.txt --zero_centering --kfolds=27
 
@@ -64,7 +64,7 @@ python train_one.py --data_x=./data/pre_N_xL-H_stitch_3snonlin_z0/train_input.tx
 # L-H cut-stitch
 python hyper_optim.py --trials=100 --data_x=./data/pre_N_L-H_stitch_z0/train_input.txt --data_y=./data/pre_N_L-H_stitch_z0/train_output.txt --save_kfold --model_dir=models/pre_N_LH_stitch_z0 --save_best --lr=0.01 --kfolds=27 --lgk=./data/pre_N_L-H_stitch_z0/kf.txt
 
-
+'decay': 5.798482553189827e-07, 'hidden_size': 16, 'num_layers': 4
 # restart NVIDIA driver
 sudo rmmod nvidia_uvm
 sudo modprobe nvidia_uvm
