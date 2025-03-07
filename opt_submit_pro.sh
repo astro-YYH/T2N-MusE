@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=hyper-pro
-#SBATCH --time=0-24:00:00
+#SBATCH --time=0-36:00:00
 #SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=gh
@@ -11,25 +11,31 @@ source ~/.bashrc
 conda activate pytorch-env
 which python
 
+export PYTHONUNBUFFERED=1
+
 hostname
 date
 
 # production sims
 # L1A:
-python hyper_optim.py --trials=80 --data_x=./data/N_L1A_z0/train_input.txt --data_y=./data/N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_L1A_z0_0c --save_best --lr=0.02 --kfolds=15 --lgk=./data/N_L1A_z0/kf.txt --zero_centering &
+python hyper_optim.py --trials=60 --data_x=./data/N_L1A_z0/train_input.txt --data_y=./data/N_L1A_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_L1A_z0_0c --save_best --lr=0.02 --kfolds=15 --lgk=./data/N_L1A_z0/kf.txt --zero_centering &> N_L1A_z0_0c.log &
 
 # L1HA:
-python hyper_optim.py --trials=80 --data_x=./data/N_LHA_z0/train_input.txt --data_y=./data/N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_LHA_z0_0c --save_best --lr=0.02 --kfolds=15 --lgk=./data/N_L1A_z0/kf.txt --zero_centering &
+python hyper_optim.py --trials=60 --data_x=./data/N_LHA_z0/train_input.txt --data_y=./data/N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_LHA_z0_0c --save_best --lr=0.02 --kfolds=15 --lgk=./data/N_L1A_z0/kf.txt --zero_centering &> N_LHA_z0_0c.log &
 
 # L2:
-python hyper_optim.py --trials=80 --data_x=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/train_input_fidelity_0.txt --data_y=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/train_output_fidelity_0.txt --bound_x=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_L2_z0_0c --save_best --lr=0.02 --kfolds=15 --lgk=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/kf.txt --zero_centering &
+python hyper_optim.py --trials=60 --data_x=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/train_input_fidelity_0.txt --data_y=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/train_output_fidelity_0.txt --bound_x=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_L2_z0_0c --save_best --lr=0.02 --kfolds=15 --lgk=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/kf.txt --zero_centering &> N_L2_z0_0c.log &
 
 # LH:
-python hyper_optim.py --trials=80 --data_x=./data/N_xLH_stitch_z0/train_input.txt --data_y=./data/N_xLH_stitch_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_xLH_stitch_z0_0c --save_best --lr=0.01 --kfolds=15 --lgk=./data/N_xLH_stitch_z0/kf.txt --zero_centering &
+python hyper_optim.py --trials=60 --data_x=./data/N_xLH_stitch_z0/train_input.txt --data_y=./data/N_xLH_stitch_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_xLH_stitch_z0_0c --save_best --lr=0.02 --kfolds=15 --lgk=./data/N_xLH_stitch_z0/kf.txt --zero_centering &> N_xLH_stitch_z0_0c.log &
+
+sleep 100
+nvidia-smi
 
 
 wait
 date
+
 
 
 
