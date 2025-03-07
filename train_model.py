@@ -34,7 +34,7 @@ class SimpleNN(nn.Module):
         return self.network(x)
 
 class EarlyStopping:
-    def __init__(self, patience=50, fraction=0.001):
+    def __init__(self, patience=50, fraction=0.0005):
         """
         Early stopping with a relative threshold.
 
@@ -170,7 +170,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0 if L2_reg else decay)  # Use weight decay for L2 regularization
 
 
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=40)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=90)
 
     # **Check if full-batch training is possible**
     # use_full_batch = best_batch >= len(train_dataset)

@@ -6,10 +6,26 @@ import torch
 from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
 from train_model import train_NN, train_model_kfold
 from mfbox import act_dict
+# import tqdm
+import sys
+
+# Automatically disable tqdm progress bar if not running interactively
+show_progress = sys.stdout.isatty()  # True if running interactively, False if output is redirected
+# tqdm.tqdm.disable = not show_progress  # Disable if not interactive
 
 # Function to evaluate a given set of hyperparameters
 def objective(params):
-    print(f"Testing with: {params}")
+    # Determine which trials object is active
+    if len(trials_fine.trials) > 0:  # If fine-tuning has started, count from trials_fine
+        trial_number = len(trials_fine.trials)
+        round_name = "Fine-Tuning"
+        trials_max = trials_fine_max
+    else:
+        trial_number = len(trials.trials)
+        round_name = "Initial Search"
+        trials_max = args.trials
+
+    print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Testing with: {params}")
     
     # Train the model with K-Fold CV
     train_loss, val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering)
@@ -117,13 +133,17 @@ if __name__ == "__main__":
     # Create a trials object to store optimization history
     trials = Trials()
 
+    trials_fine = Trials()
+    trials_fine_max = max(int(args.trials / 2),1)
+
     # Run Bayesian optimization
     best_hyperparams = fmin(
         fn=objective,        # Function to minimize (training + validation loss)
         space=space,         # Hyperparameter search space
         algo=tpe.suggest,    # Tree-structured Parzen Estimator (TPE)
         max_evals=args.trials,        # Number of trials to run
-        trials=trials        # Store results
+        trials=trials,        # Store results
+        show_progressbar=show_progress
     )
     best_hidden_size = hidden_size_choices[best_hyperparams['hidden_size']]
     best_num_layers = num_layers_choices[best_hyperparams['num_layers']]
@@ -145,13 +165,14 @@ if __name__ == "__main__":
     }
 
     # Run the second optimization round
-    trials_fine = Trials()
+    
     best_hyperparams_fine = fmin(
         fn=objective,
         space=space_fine,
         algo=tpe.suggest,
-        max_evals=max(int(args.trials / 2),1),  # Fewer trials for fine-tuning
-        trials=trials_fine
+        max_evals=trials_fine_max,  # Fewer trials for fine-tuning
+        trials=trials_fine,
+        show_progressbar=show_progress
     )
 
     # ✅ Directly assign the fine-tuned best hyperparameters
