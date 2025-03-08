@@ -62,7 +62,7 @@ if __name__ == "__main__":
     # epochs
     parser.add_argument('--epochs', type=int, default=None, help='Number of epochs')
     # epochs per neuron
-    parser.add_argument('--epochs_neuron', type=int, default=200, help='Number of epochs per neuron')
+    parser.add_argument('--epochs_neuron', type=int, default=300, help='Number of epochs per neuron')
     # activation function
     parser.add_argument('--activation', type=str, default='SiLU', help='Activation function')
     # lgk file
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     hidden_size_choices = list(range(16, 513, 16))  # Generates [16, 32, 48, ..., 512]
     num_layers_choices = [1, 2, 3, 4, 5, 6, 7]
     # activation_choices = [nn.ReLU, nn.Tanh, nn.Sigmoid]
-    decay_lower, decay_upper = 1e-7, 1e-4
+    decay_lower, decay_upper = 5e-9, .5e-4
 
     # Check if GPU is available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     print('hidden_size', best_params['hidden_size'], 'decay', best_params['decay'], 'num_layers', best_params['num_layers'])
 
     # Evaluate the model with the best hyperparameters
-    final_train_loss, final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering)
+    final_train_loss, final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
