@@ -20,12 +20,14 @@ def objective(params):
         trial_number = len(trials_fine.trials)
         round_name = "Fine-Tuning"
         trials_max = trials_fine_max
+        best_loss = min([trial['result']['loss'] for trial in trials_fine.trials])
     else:
         trial_number = len(trials.trials)
         round_name = "Initial Search"
         trials_max = args.trials
+        best_loss = min([trial['result']['loss'] for trial in trials.trials])
 
-    print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Testing with: {params}")
+    print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
     train_loss, val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering)
