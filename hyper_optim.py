@@ -20,12 +20,12 @@ def objective(params):
         trial_number = len(trials_fine.trials)
         round_name = "Fine-Tuning"
         trials_max = trials_fine_max
-        best_loss = min([trial['result']['loss'] for trial in trials_fine.trials])
+        best_loss = min([trial['result']['loss'] for trial in trials_fine.trials[:-1]]) if len(trials_fine.trials) > 1 else float('inf')
     else:
         trial_number = len(trials.trials)
         round_name = "Initial Search"
         trials_max = args.trials
-        best_loss = min([trial['result']['loss'] for trial in trials.trials])
+        best_loss = min([trial['result']['loss'] for trial in trials.trials[:-1]]) if len(trials.trials) > 1 else float('inf')
 
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     # epochs
     parser.add_argument('--epochs', type=int, default=None, help='Number of epochs')
     # epochs per neuron
-    parser.add_argument('--epochs_neuron', type=int, default=300, help='Number of epochs per neuron')
+    parser.add_argument('--epochs_neuron', type=int, default=1000, help='Number of epochs per neuron')
     # activation function
     parser.add_argument('--activation', type=str, default='SiLU', help='Activation function')
     # lgk file

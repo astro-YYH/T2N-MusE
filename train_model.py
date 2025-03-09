@@ -195,7 +195,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         train_loader = DataLoader(train_dataset, batch_size=best_batch, shuffle=True, num_workers=2, pin_memory=True)
 
     # Usage in training loop
-    early_stopping = EarlyStopping(patience=200)
+    early_stopping = EarlyStopping(patience=300)
 
     # Training loop with mini-batches
     for epoch in range(epochs):
