@@ -30,7 +30,7 @@ def objective(params):
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
-    train_loss, val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering)
+    train_loss, val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds)
 
     # optimize the average of training loss and validation loss
 
@@ -72,8 +72,14 @@ if __name__ == "__main__":
     parser.add_argument('--zero_centering', action='store_true', help='Zero-center the output data')
     # optimize training + validation loss
     parser.add_argument('--opt_val', action='store_true', help='Optimize validation loss')  # if False, optimize training loss + validation loss
+    parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
 
     args = parser.parse_args()
+
+    if args.test_folds is not None:
+        test_folds = list(map(int, args.test_folds.split(',')))  # Convert CSV input into a list of ints
+    else:
+        test_folds = None  # Default to None (test all folds)
 
     # load the lgk file
     if args.lgk is not None:
@@ -186,7 +192,7 @@ if __name__ == "__main__":
     print('hidden_size', best_params['hidden_size'], 'decay', best_params['decay'], 'num_layers', best_params['num_layers'])
 
     # Evaluate the model with the best hyperparameters
-    final_train_loss, final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk)
+    final_train_loss, final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
