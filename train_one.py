@@ -44,10 +44,16 @@ if __name__ == "__main__":
     parser.add_argument('--lgk', type=str, default=None, help='Path to the lgk file')
     parser.add_argument('--zero_centering', action='store_true', help='Zero-center the output data')
     parser.add_argument('--standardize', action='store_true', help='Standardize the output data')
+    parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
 
 
 
     args = parser.parse_args()
+
+    if args.test_folds is not None:
+        test_folds = list(map(int, args.test_folds.split(',')))  # Convert CSV input into a list of ints
+    else:
+        test_folds = None  # Default to None (test all folds)
 
     # load the lgk file
     if args.lgk is not None:
@@ -122,7 +128,7 @@ if __name__ == "__main__":
 
     # if kfolds > 0, perform K-Fold CV
     if args.kfolds > 0:
-        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=act_dict[args.activation], zero_centering=args.zero_centering, lgk=lgk)
+        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=act_dict[args.activation], zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
