@@ -98,7 +98,7 @@ if __name__ == "__main__":
     hidden_size_choices = list(range(16, 513, 16))  # Generates [16, 32, 48, ..., 512]
     num_layers_choices = [1, 2, 3, 4, 5, 6, 7]
     # activation_choices = [nn.ReLU, nn.Tanh, nn.Sigmoid]
-    decay_lower, decay_upper = 5e-9, .5e-4
+    decay_lower, decay_upper = 1e-9, .5e-4
 
     # Check if GPU is available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
