@@ -39,4 +39,3 @@ nvidia-smi
 
 wait
 date
-

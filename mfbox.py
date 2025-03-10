@@ -304,10 +304,10 @@ class gokunet_split():
 
 # class gokunet_sf
 class gokunet_sf(singlefid):
-    def __init__(self, path, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt", output_lg=False):
+    def __init__(self, path, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt", output_orig_scale=False):
         super().__init__(path, device=device)
         self.bounds = np.loadtxt(bounds_path)
-        self.output_lg = output_lg
+        self.output_orig_scale = output_orig_scale
     
     def predict(self, x):
         # Normalize the input data
@@ -320,7 +320,7 @@ class gokunet_sf(singlefid):
         # print('after normalization',x_norm)
         lgk, y = super().predict(x_norm)
         # return 10**y # Convert back to linear scale
-        if self.output_lg:
+        if self.output_orig_scale:
             print('output lg: True')
             print("one of the y values larger than 1000") if np.any(y>1000) else None
             return lgk, y
@@ -359,9 +359,9 @@ class gokunet_alpha():
 class gokunet_test():  # LHA ratio
     def __init__(self, path_LA, path_HA, path_L2, path_LH, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
         self.model_LA = gokunet_sf(path_LA, device=device, bounds_path=bounds_path)
-        self.model_HA = gokunet_sf(path_HA, device=device, bounds_path=bounds_path, output_lg=True)
+        self.model_HA = gokunet_sf(path_HA, device=device, bounds_path=bounds_path, output_orig_scale=True)
         self.model_L2 = gokunet_sf(path_L2, device=device, bounds_path=bounds_path)
-        self.model_LH = gokunet_sf(path_LH, device=device, bounds_path=bounds_path)
+        self.model_LH = gokunet_sf(path_LH, device=device, bounds_path=bounds_path, output_orig_scale=True)
 
     def predict_LA(self, x):
         return self.model_LA.predict(x)
@@ -379,7 +379,8 @@ class gokunet_test():  # LHA ratio
         lgy_LA = np.log10(y_LA) 
         lgy_L2 = np.log10(y_L2) 
         x_xL1AL2B = np.concatenate((x, lgy_LA, lgy_L2[:,lgy_L2.shape[1]//2:]), axis=1) # temporary solution 
-        _, y_H_forB = self.model_LH.predict(x_xL1AL2B)
+        _, ra_forB = self.model_LH.predict(x)
+        y_H_forB = y_L2 * ra_forB
         # _, y_H_forB = self.model_LH.predict(x)
         # combine with y_A
         y = np.concatenate((y_A, y_H_forB[:, (y_H_forB.shape[1])//2:]), axis=1)
@@ -387,14 +388,46 @@ class gokunet_test():  # LHA ratio
         k = np.concatenate((k_A, k_L2[len(k_L2)//2:]))  # temporary solution
         return k, y
     
+class gokunet_test1():  # LHA ratio
+    def __init__(self, path_LA, path_HA, path_L2, path_HB, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
+        self.model_LA = gokunet_sf(path_LA, device=device, bounds_path=bounds_path)
+        self.model_HA = gokunet_sf(path_HA, device=device, bounds_path=bounds_path, output_orig_scale=True)
+        self.model_L2 = gokunet_sf(path_L2, device=device, bounds_path=bounds_path)
+        self.model_HB = gokunet_sf(path_HB, device=device, bounds_path=bounds_path, output_orig_scale=True)
+
+    def predict_LA(self, x):
+        return self.model_LA.predict(x)
+    
+    def predict_L2(self, x):
+        return self.model_L2.predict(x)
+    
+    def predict(self, x):
+        k_A, y_LA = self.model_LA.predict(x)
+        lgk_A, ra_A = self.model_HA.predict(x)
+        print('ra_A',ra_A)
+        y_A = y_LA * ra_A
+        k_L2, y_L2 = self.model_L2.predict(x)
+
+        lgy_LA = np.log10(y_LA) 
+        lgy_L2 = np.log10(y_L2) 
+        x_xL1AL2B = np.concatenate((x, lgy_LA, lgy_L2[:,lgy_L2.shape[1]//2:]), axis=1) # temporary solution 
+        _, ra_B = self.model_HB.predict(x)
+        y_B = y_L2[:, (y_L2.shape[1])//2:] * ra_B
+        # _, y_H_forB = self.model_LH.predict(x)
+        # combine with y_A
+        y = np.concatenate((y_A, y_B), axis=1)
+        # y = y_H_forB
+        k = np.concatenate((k_A, k_L2[len(k_L2)//2:]))  # temporary solution
+        return k, y
+    
 # alpha 3-step version
 class gokunet_alpha3s():
     def __init__(self, path_LA, path_HAlin, path_HAnonl, path_L2, path_LHlin, path_LHnonl, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
-        self.model_LA = gokunet_sf(path_LA, device=device, bounds_path=bounds_path, output_lg=True)
-        self.model_HA_lin = gokunet_sf(path_HAlin, device=device, bounds_path=bounds_path, output_lg=True)
+        self.model_LA = gokunet_sf(path_LA, device=device, bounds_path=bounds_path, output_orig_scale=True)
+        self.model_HA_lin = gokunet_sf(path_HAlin, device=device, bounds_path=bounds_path, output_orig_scale=True)
         self.model_HA_nonl = gokunet_sf(path_HAnonl, device=device, bounds_path=bounds_path)
-        self.model_L2 = gokunet_sf(path_L2, device=device, bounds_path=bounds_path, output_lg=True)
-        self.model_LH_lin = gokunet_sf(path_LHlin, device=device, bounds_path=bounds_path, output_lg=True)
+        self.model_L2 = gokunet_sf(path_L2, device=device, bounds_path=bounds_path, output_orig_scale=True)
+        self.model_LH_lin = gokunet_sf(path_LHlin, device=device, bounds_path=bounds_path, output_orig_scale=True)
         self.model_LH_nonl = gokunet_sf(path_LHnonl, device=device, bounds_path=bounds_path)
 
 
