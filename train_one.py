@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import torch
 from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
-from train_model import train_NN, train_model_kfold
+from train_model import train_NN, train_model_kfold, train_model_kfold_2r
 import torch.nn as nn
 
 if __name__ == "__main__":
@@ -45,10 +45,13 @@ if __name__ == "__main__":
     parser.add_argument('--zero_centering', action='store_true', help='Zero-center the output data')
     parser.add_argument('--standardize', action='store_true', help='Standardize the output data')
     parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
-
+    parser.add_argument('--trials_train', type=int, default=1, help='Number of trials per k-fold training')
+    parser.add_argument('--k2r', action='store_true', help='Use the 2-round k-fold training')
 
 
     args = parser.parse_args()
+
+    train_kfold = train_model_kfold_2r if args.k2r else train_model_kfold
 
     if args.test_folds is not None:
         test_folds = list(map(int, args.test_folds.split(',')))  # Convert CSV input into a list of ints
@@ -126,16 +129,19 @@ if __name__ == "__main__":
     print("\n🎯 Hyperparameters:")
     print('hidden_size', hidden_size, 'decay', decay, 'num_layers', num_layers)
 
+    best_fold = None
+
     # if kfolds > 0, perform K-Fold CV
     if args.kfolds > 0:
-        final_val_loss = train_model_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=act_dict[args.activation], zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds)
+        _, _, best_fold, lr_best = train_kfold(num_layers, hidden_size, decay=decay, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=act_dict[args.activation], zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train)
+        lr = lr_best
 
     # train and save the model with the best hyperparameters
     # Save the model if required
     # train the model on the full dataset
 
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * hidden_size * num_layers
-    train_loss, _ = train_NN(num_layers, hidden_size, x_tensor, y_tensor, decay=decay, device=device, save_model=True, model_path=model_path, lr=args.lr, epochs=epochs, activation=act_dict[args.activation], lgk=lgk, zero_centering=args.zero_centering)
+    train_loss, _, _, _ = train_NN(num_layers, hidden_size, x_tensor, y_tensor, decay=decay, device=device, save_model=True, model_path=model_path, lr=lr_best, epochs=epochs, activation=act_dict[args.activation], lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time

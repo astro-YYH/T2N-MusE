@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import torch
 from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
-from train_model import train_NN, train_model_kfold
+from train_model import train_NN, train_model_kfold, train_model_kfold_2r
 from mfbox import act_dict
 # import tqdm
 import sys
@@ -30,7 +30,7 @@ def objective(params):
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
-    train_loss, val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds)
+    train_loss, val_loss = train_model_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train)
 
     # optimize the average of training loss and validation loss
 
@@ -73,8 +73,12 @@ if __name__ == "__main__":
     # optimize training + validation loss
     parser.add_argument('--opt_val', action='store_true', help='Optimize validation loss')  # if False, optimize training loss + validation loss
     parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
+    parser.add_argument('--trials_train', type=int, default=1, help='Number of trials per k-fold training')
+    parser.add_argument('--k2r', action='store_true', help='Use the 2-round k-fold training')
 
     args = parser.parse_args()
+
+    train_kfold = train_model_kfold_2r if args.k2r else train_model_kfold
 
     if args.test_folds is not None:
         test_folds = list(map(int, args.test_folds.split(',')))  # Convert CSV input into a list of ints
@@ -192,7 +196,7 @@ if __name__ == "__main__":
     print('hidden_size', best_params['hidden_size'], 'decay', best_params['decay'], 'num_layers', best_params['num_layers'])
 
     # Evaluate the model with the best hyperparameters
-    final_train_loss, final_val_loss = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds)
+    _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -202,7 +206,7 @@ if __name__ == "__main__":
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    train_loss, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering)
+    train_loss, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time
