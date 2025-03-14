@@ -540,7 +540,7 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
                  decay=decay, epochs=epochs, lr=lr_best, device=device, 
                  activation=activation, zero_centering=zero_centering, random_seed=seed_best, save_model=save_model, model_path=model_path, lgk=lgk, initial_model=best_model)
 
-    print(f"✅ Best model selected for this fold mean(Validation Loss,Training) = {(best_train_loss + best_val_loss)/2:.6e})")
+    print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss: {(best_train_loss + best_val_loss)/2:.6e})")
     return best_train_loss, best_val_loss, best_model, lr_best
 
 def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
