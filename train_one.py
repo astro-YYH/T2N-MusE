@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # epochs
     parser.add_argument('--epochs', type=int, default=None, help='Number of epochs')
     # epochs per neuron
-    parser.add_argument('--epochs_neuron', type=int, default=200, help='Number of epochs per neuron')
+    parser.add_argument('--epochs_neuron', type=int, default=1000, help='Number of epochs per neuron')
     # activation function
     parser.add_argument('--activation', type=str, default='SiLU', help='Activation function')
     # number of hidden layers
