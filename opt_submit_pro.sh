@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=hyper-pro
-#SBATCH --time=0-36:00:00
+#SBATCH --time=0-48:00:00
 #SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=gh
@@ -43,3 +43,4 @@ nvidia-smi
 
 wait
 date
+
