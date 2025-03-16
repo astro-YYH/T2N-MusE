@@ -461,7 +461,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     lr_best = fold_results[idx_best][3]
 
     # print the best model fold
-    print(f"\n✅ Best Model Selected: model fold {test_folds[idx_best]}")
+    print(f"\n✅ Best Model Selected: model fold {idx_best}")
 
     fold_results = []  # Reset fold results for second round
     tested_count = 0  # Reset tested count for second round
@@ -533,14 +533,14 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
             # print(f"✅ Best model selected for this fold (Validation Loss + Training Loss: {best_summed_loss:.6e})")
     #retrain and save the best model
 
-    print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss: {best_summed_loss/2:.6e})")
+    print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss): {best_summed_loss/2:.6e}")
     print(f"🔄 Retraining the best model with seed {seed_best}...")
     if save_model and best_model is not None:
         best_train_loss, best_val_loss, best_model, lr_best = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y,
                  decay=decay, epochs=epochs, lr=lr_best, device=device, 
                  activation=activation, zero_centering=zero_centering, random_seed=seed_best, save_model=save_model, model_path=model_path, lgk=lgk, initial_model=best_model)
 
-    print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss: {(best_train_loss + best_val_loss)/2:.6e})")
+    print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss): {(best_train_loss + best_val_loss)/2:.6e}")
     return best_train_loss, best_val_loss, best_model, lr_best
 
 def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
@@ -607,7 +607,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
     lr_best = fold_results[idx_best][3]
 
     # print the best model fold
-    print(f"\n✅ Best Model Selected: model fold {test_folds[idx_best]}")
+    print(f"\n✅ Best Model Selected: model fold {idx_best}")
 
     if fold_results:
         avg_val_loss = np.mean([val_loss for _, val_loss, _, _ in fold_results])
