@@ -119,7 +119,7 @@ def find_max_batch_size(model, dataset, device, start=32, step=2):
     print(f"🎯 Optimal Batch Size Found: {best_batch}")
     return best_batch
 
-def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True, initial_model=None, random_seed=42):
+def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True, initial_model=None, random_seed=42, pca_components=None, pca_mean=None, std_mean=None, std_scale=None):
     set_seed(random_seed) # Set seed for reproducibility
 
     center_x = None
@@ -240,7 +240,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         # if epoch reached the maximum number of epochs, warn the user that the model is not converged
         if epoch == epochs - 1:
             print("⚠ Maximum number of epochs reached. The model may not have converged.\n")
-    
+    # print('type of pca_components:', type(pca_components))
     if save_model:
         torch.save({
             'num_layers': num_layers,
@@ -251,7 +251,11 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
             'training_loss': train_loss,
             'center_x': center_x.cpu().numpy() if center_x is not None else None,  # Ensure it's a NumPy array
             'center_y': center_y.cpu().numpy() if center_y is not None else None,  # Convert before saving
-            'state_dict': model.state_dict()
+            'state_dict': model.state_dict(),
+            'pca_components': pca_components,
+            'pca_mean': pca_mean,
+            'std_mean': std_mean,
+            'std_scale': std_scale
         }, model_path)
         print(f"Model saved to {model_path}\n")
 
@@ -389,7 +393,7 @@ def train_model_kfold_beta(num_layers, hidden_size, x_data, y_data, decay=0, k=5
 def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
                       device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, 
-                      lgk=None, test_folds=None, num_trials=1):
+                      lgk=None, test_folds=None, num_trials=1, pca_components=None, pca_mean=None, std_mean=None, std_scale=None):
     """
     Train model using K-Fold Cross-Validation with an option to specify test folds.
 
@@ -482,7 +486,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
         train_loss, val_loss, model, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
                                         decay=decay, epochs=epochs, lr=lr_best, device=device, 
                                         save_model=save_kf_model, model_path=kf_model_path, 
-                                        activation=activation, zero_centering=zero_centering, lgk=lgk, initial_model=copy.deepcopy(best_model))
+                                        activation=activation, zero_centering=zero_centering, lgk=lgk, initial_model=copy.deepcopy(best_model), pca_components=pca_components, pca_mean=pca_mean, std_mean=std_mean, std_scale=std_scale)
 
         fold_results.append((train_loss, val_loss, model))
     
@@ -501,7 +505,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
 def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
                               num_trials=3, decay=0, epochs=1000, lr=0.1, device='cuda', 
                               activation=nn.SiLU(), zero_centering=False, save_model=False,
-                              model_path='model.pth', lgk=None):
+                              model_path='model.pth', lgk=None, pca_components=None, pca_mean=None, std_mean=None, std_scale=None):
     """
     Train a single fold multiple times with different seeds and return the best model.
     
@@ -538,7 +542,7 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
     if save_model and best_model is not None:
         best_train_loss, best_val_loss, best_model, lr_best = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y,
                  decay=decay, epochs=epochs, lr=lr_best, device=device, 
-                 activation=activation, zero_centering=zero_centering, random_seed=seed_best, save_model=save_model, model_path=model_path, lgk=lgk, initial_model=best_model)
+                 activation=activation, zero_centering=zero_centering, random_seed=seed_best, save_model=save_model, model_path=model_path, lgk=lgk, initial_model=best_model, pca_components=pca_components, pca_mean=pca_mean, std_mean=std_mean, std_scale=std_scale)
 
     print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss): {(best_train_loss + best_val_loss)/2:.6e}")
     return best_train_loss, best_val_loss, best_model, lr_best
@@ -546,7 +550,7 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
 def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
                       device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, 
-                      lgk=None, test_folds=None, num_trials=1):
+                      lgk=None, test_folds=None, num_trials=1, pca_components=None, pca_mean=None, std_mean=None, std_scale=None):
     """
     Train model using K-Fold Cross-Validation with an option to specify test folds.
 
@@ -597,7 +601,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
 
         train_loss, val_loss, model, lr_fine = train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, val_y,
                                                                 decay=decay, epochs=epochs, lr=lr, device=device, 
-                                                                activation=activation, zero_centering=zero_centering, num_trials=num_trials, save_model=save_kf_model, model_path=kf_model_path, lgk=lgk)
+                                                                activation=activation, zero_centering=zero_centering, num_trials=num_trials, save_model=save_kf_model, model_path=kf_model_path, lgk=lgk, pca_components=pca_components, pca_mean=pca_mean, std_mean=std_mean, std_scale=std_scale)
 
         fold_results.append((train_loss, val_loss, model, lr_fine))
     # find the best model fold index

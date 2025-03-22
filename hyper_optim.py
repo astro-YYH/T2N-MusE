@@ -8,6 +8,7 @@ from train_model import train_NN, train_model_kfold, train_model_kfold_2r
 from mfbox import act_dict
 # import tqdm
 import sys
+from sklearn.decomposition import PCA
 
 # Automatically disable tqdm progress bar if not running interactively
 show_progress = sys.stdout.isatty()  # True if running interactively, False if output is redirected
@@ -30,7 +31,7 @@ def objective(params):
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
-    train_loss, val_loss, _, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train)
+    train_loss, val_loss, _, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, pca_components=mean_std['pca_components'], pca_mean=mean_std['pca_mean'], std_mean=mean_std['mean'], std_scale=mean_std['std'])
 
     # optimize the average of training loss and validation loss
 
@@ -75,6 +76,8 @@ if __name__ == "__main__":
     parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
     parser.add_argument('--trials_train', type=int, default=1, help='Number of trials per k-fold training')
     parser.add_argument('--k2r', action='store_true', help='Use the 2-round k-fold training')
+    parser.add_argument('--min_pca', type=float, default=1, help='Minimum explained variance ratio of the PCA')
+    parser.add_argument('--standardize', action='store_true', help='Standardize the output data')
 
     args = parser.parse_args()
 
@@ -122,6 +125,40 @@ if __name__ == "__main__":
         # normalize the input data (only the first matched columns)
         dimx_original = bounds.shape[0]
         x[:,:dimx_original] = (x[:,:dimx_original] - bounds[:,0]) / (bounds[:,1] - bounds[:,0])
+
+    # y PCA if the minimum explained variance ratio is not 1
+    if args.min_pca < 1:
+        pca = PCA()
+        pca.fit(y)
+        # Explained variance ratio for each PC
+        explained_variance = pca.explained_variance_ratio_
+
+        # Cumulative explained variance
+        cumulative_variance = np.cumsum(explained_variance)
+
+        # Find the number of PCs that explain args.min_pca of the variance
+        n_components = np.argmax(cumulative_variance > args.min_pca) + 1
+
+        # Transform the data, only keep the first n_components
+        y = pca.transform(y)[:, :n_components]
+
+        # standardize the output data
+        if args.standardize:
+            y_mean = np.mean(y, axis=0)
+            y_std = np.std(y, axis=0)
+            y = (y - y_mean) / y_std
+        else:
+            y_mean = None
+            y_std = None
+
+        # save the PCA components
+        mean_std = {'pca_components': pca.components_[:n_components], 'pca_mean': pca.mean_, 'mean': y_mean, 'std': y_std}
+
+        # print the number of PCs and the explained variance
+        print(f"Number of PCs: {n_components}")
+        print(f"Explained variance: {cumulative_variance[n_components - 1]}")
+    else:
+        mean_std = {'pca_components': None, 'pca_mean': None, 'mean': None, 'std': None}
 
     # Convert to tensors on the CPU 
     x_tensor = torch.tensor(x, dtype=torch.float32)
@@ -196,7 +233,7 @@ if __name__ == "__main__":
     print('hidden_size', best_params['hidden_size'], 'decay', best_params['decay'], 'num_layers', best_params['num_layers'])
 
     # Evaluate the model with the best hyperparameters
-    _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train)
+    _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, pca_components=mean_std['pca_components'], pca_mean=mean_std['pca_mean'], std_mean=mean_std['mean'], std_scale=mean_std['std'])
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -206,7 +243,7 @@ if __name__ == "__main__":
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    train_loss, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold)
+    train_loss, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold, pca_components=mean_std['pca_components'], pca_mean=mean_std['pca_mean'], std_mean=mean_std['mean'], std_scale=mean_std['std'])
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time

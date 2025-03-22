@@ -9,8 +9,8 @@ act_dict = {'ReLU': nn.ReLU(), 'SiLU': nn.SiLU(), 'Tanh': nn.Tanh(), 'None': Non
 import torch
 import torch.nn as nn
 
-class RescaledNN(SimpleNN):
-    def __init__(self, num_layers, hidden_size, dim_x=1, dim_y=1, activation=nn.SiLU(), center_x=None, center_y=None, device='cpu'):
+class RescaledNN(SimpleNN):  # not for training, only for prediction
+    def __init__(self, num_layers, hidden_size, dim_x=1, dim_y=1, activation=nn.SiLU(), center_x=None, center_y=None, device='cpu', pca_components=None, pca_mean=None, std_mean=None, std_scale=None):
         """
         A neural network that automatically applies zero-centering during training
         and reverses the transformation during inference.
@@ -29,6 +29,10 @@ class RescaledNN(SimpleNN):
         self.center_x = center_x.to(device) if center_x is not None else None
         self.center_y = center_y.to(device) if center_y is not None else None
         self.device = device  # Ensure device consistency
+        self.pca_components = pca_components.to(device) if pca_components is not None else None
+        self.pca_mean = pca_mean.to(device) if pca_mean is not None else None
+        self.std_mean = std_mean.to(device) if std_mean is not None else None
+        self.std_scale = std_scale.to(device) if std_scale is not None else None
 
     def forward(self, x):
         """
@@ -39,6 +43,14 @@ class RescaledNN(SimpleNN):
         y_pred = super().forward(x)  # Pass through the base network
         if self.center_y is not None:
             y_pred = y_pred + self.center_y  # Reverse zero-centering for output
+
+        # Do inverse scaling + inverse PCA if we have the info (only at inference time)
+        if self.std_mean is not None and self.std_scale is not None:
+            y_pred = y_pred * self.std_scale + self.std_mean
+
+        if self.pca_components is not None and self.pca_mean is not None:
+            y_pred = y_pred @ self.pca_components + self.pca_mean
+
         return y_pred
 
     @classmethod
@@ -58,7 +70,7 @@ class RescaledNN(SimpleNN):
 
         # Activation function lookup
         activation = act_dict.get(checkpoint['activation'], nn.SiLU())  # Default to SiLU if missing
-        
+
         # Convert center_x and center_y back to tensors
         # check if center_x and center_y exist
         if 'center_x' in checkpoint:
@@ -67,9 +79,17 @@ class RescaledNN(SimpleNN):
         else:
             center_x, center_y = None, None
 
+        if 'pca_components' in checkpoint:
+            pca_components = torch.tensor(checkpoint['pca_components'], dtype=torch.float32, device=device) if checkpoint['pca_components'] is not None else None
+            pca_mean = torch.tensor(checkpoint['pca_mean'], dtype=torch.float32, device=device) if checkpoint['pca_mean'] is not None else None
+            std_mean = torch.tensor(checkpoint['std_mean'], dtype=torch.float32, device=device) if checkpoint['std_mean'] is not None else None
+            std_scale = torch.tensor(checkpoint['std_scale'], dtype=torch.float32, device=device) if checkpoint['std_scale'] is not None else None
+        else:
+            pca_components, pca_mean, std_mean, std_scale = None, None, None, None
+
         # Create an instance of RescaledNN
         model = cls(num_layers=checkpoint['num_layers'], hidden_size=checkpoint['hidden_size'],
-                    dim_x=dim_x, dim_y=dim_y, activation=activation, center_x=center_x, center_y=center_y, device=device)
+                    dim_x=dim_x, dim_y=dim_y, activation=activation, center_x=center_x, center_y=center_y, device=device, pca_components=pca_components, pca_mean=pca_mean, std_mean=std_mean, std_scale=std_scale)
         
         model.load_state_dict(checkpoint['state_dict'])  # Load weights
         model.to(device)
