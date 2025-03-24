@@ -176,6 +176,35 @@ class doublefid:
 
         return self.lgk, y
     
+class gokunet_df_ratio:
+    def __init__(self, path_LF, path_LHr, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
+        self.device = torch.device(device)
+
+        # Load the saved model dictionary
+        self.single_LF = singlefid(path_LF, device=self.device)
+        self.single_LHr = singlefid(path_LHr, device=self.device)
+        self.bounds = np.loadtxt(bounds_path)
+
+    def predict_LF(self, x):
+        # bounds
+        x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        # lg to linear
+        lgk, y_LF = self.single_LF.predict(x)
+        return 10**lgk, 10**y_LF
+    
+    def predict_LHr(self, x):
+        x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        # lg to linear
+        lgk, ratio_LH = self.single_LHr.predict(x)
+        return 10**lgk, ratio_LH
+    
+    def predict(self, x):
+        k, y_LF = self.predict_LF(x)
+        _, ratio_LH = self.predict_LHr(x)
+
+        y_H = y_LF * ratio_LH
+        return k, y_H
+
 # load L1, L2 and LF-HF models, and make predictions
 class mfbox:
     def __init__(self, path_L1, path_L2, path_LH, path_LHf=None, device='cpu', stitch="XL1L2"):
