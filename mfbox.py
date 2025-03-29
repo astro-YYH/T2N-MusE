@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 
 class RescaledNN(SimpleNN):  # not for training, only for prediction
-    def __init__(self, num_layers, hidden_size, dim_x=1, dim_y=1, activation=nn.SiLU(), center_x=None, center_y=None, device='cpu', pca_components=None, pca_mean=None, std_mean=None, std_scale=None):
+    def __init__(self, num_layers, hidden_size, dim_x=1, dim_y=1, activation=nn.SiLU(), center_x=None, center_y=None, device='cpu', pca_components=None, pca_mean=None, std_mean=None, std_scale=None, n_pc_zs=None):
         """
         A neural network that automatically applies zero-centering during training
         and reverses the transformation during inference.
@@ -29,10 +29,11 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         self.center_x = center_x.to(device) if center_x is not None else None
         self.center_y = center_y.to(device) if center_y is not None else None
         self.device = device  # Ensure device consistency
-        self.pca_components = pca_components.to(device) if pca_components is not None else None
-        self.pca_mean = pca_mean.to(device) if pca_mean is not None else None
+        self.pca_components = pca_components if pca_components is not None else None
+        self.pca_mean = pca_mean if pca_mean is not None else None
         self.std_mean = std_mean.to(device) if std_mean is not None else None
         self.std_scale = std_scale.to(device) if std_scale is not None else None
+        self.n_pc_zs = n_pc_zs if n_pc_zs is not None else None
 
     def forward(self, x):
         """
@@ -44,12 +45,40 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         if self.center_y is not None:
             y_pred = y_pred + self.center_y  # Reverse zero-centering for output
 
+        # print shape
+        print('y_pred shape', y_pred.shape)
         # Do inverse scaling + inverse PCA if we have the info (only at inference time)
-        if self.std_mean is not None and self.std_scale is not None:
+        if self.std_mean is not None and self.std_scale is not None:  # do not use this for now, we do not standardize the output in training
             y_pred = y_pred * self.std_scale + self.std_mean
 
+        # Apply PCA inverse transformation if components and mean are provided
+        # should be done for every redshift bin 
         if self.pca_components is not None and self.pca_mean is not None:
-            y_pred = y_pred @ self.pca_components + self.pca_mean
+            if self.n_pc_zs is None:
+                print('n_pc_zs is None, using the only PCA component')
+                y_pred = y_pred @ self.pca_components.to(self.device) + self.pca_mean.to(self.device)
+            else:
+                # get the offset of the PCA coefficients from n_pc_zs
+                offset_pc_zs = np.insert(np.cumsum(self.n_pc_zs[:-1]), 0, 0)
+
+                n_k = self.pca_components[0].shape[1]  # number of k bins
+                n_z = len(self.n_pc_zs)
+                # y_pred_new initialized to zeros in the shape of full dimension
+                y_pred_new = torch.zeros(y_pred.shape[0], n_k * n_z, device=self.device)
+                for i in range(len(self.n_pc_zs)):
+                    ik_start = i * n_k
+                    ik_end = ik_start + n_k
+
+                    # index of coefficient
+                    ic_start = offset_pc_zs[i]
+                    ic_end = offset_pc_zs[i] + self.n_pc_zs[i]
+                    # inverse transform for this redshift bin
+                    y_pred_new[:, ik_start:ik_end] = y_pred[:, ic_start:ic_end] @ self.pca_components[i] + self.pca_mean[i]
+
+                # update y_pred
+                y_pred = y_pred_new
+        # print shape
+        print('y_pred shape', y_pred.shape)
 
         return y_pred
 
@@ -79,17 +108,26 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         else:
             center_x, center_y = None, None
 
-        if 'pca_components' in checkpoint:
+        if 'mean_std' in checkpoint:
+            pca_components = checkpoint['mean_std']['pca_components'] if checkpoint['mean_std']['pca_components'] is not None else None
+            pca_components = [torch.tensor(pc, dtype=torch.float32, device=device) for pc in pca_components] if pca_components is not None else None
+            pca_mean = torch.tensor(checkpoint['mean_std']['pca_mean'], dtype=torch.float32, device=device) if checkpoint['mean_std']['pca_mean'] is not None else None
+            pca_mean = [torch.tensor(pm, dtype=torch.float32, device=device) for pm in pca_mean] if pca_mean is not None else None
+            std_mean =  None
+            std_scale = None
+            n_pc_zs = checkpoint['mean_std']['n_pc_zs'] if 'n_pc_zs' in checkpoint['mean_std'] else None
+        elif 'pca_components' in checkpoint:  # backward compatibility (will be removed in the future)
             pca_components = torch.tensor(checkpoint['pca_components'], dtype=torch.float32, device=device) if checkpoint['pca_components'] is not None else None
             pca_mean = torch.tensor(checkpoint['pca_mean'], dtype=torch.float32, device=device) if checkpoint['pca_mean'] is not None else None
             std_mean = torch.tensor(checkpoint['std_mean'], dtype=torch.float32, device=device) if checkpoint['std_mean'] is not None else None
             std_scale = torch.tensor(checkpoint['std_scale'], dtype=torch.float32, device=device) if checkpoint['std_scale'] is not None else None
+            n_pc_zs = None
         else:
-            pca_components, pca_mean, std_mean, std_scale = None, None, None, None
+            pca_components, pca_mean, std_mean, std_scale, n_pc_zs = None, None, None, None, None
 
         # Create an instance of RescaledNN
         model = cls(num_layers=checkpoint['num_layers'], hidden_size=checkpoint['hidden_size'],
-                    dim_x=dim_x, dim_y=dim_y, activation=activation, center_x=center_x, center_y=center_y, device=device, pca_components=pca_components, pca_mean=pca_mean, std_mean=std_mean, std_scale=std_scale)
+                    dim_x=dim_x, dim_y=dim_y, activation=activation, center_x=center_x, center_y=center_y, device=device, pca_components=pca_components, pca_mean=pca_mean, std_mean=std_mean, std_scale=std_scale, n_pc_zs=n_pc_zs)
         
         model.load_state_dict(checkpoint['state_dict'])  # Load weights
         model.to(device)
@@ -190,12 +228,17 @@ class gokunet_df_ratio:
         x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
         # lg to linear
         lgk, y_LF = self.single_LF.predict(x)
+        # reshape y_LF(n_sample, n_k * n_z) back to (n_sample, n_z, n_k) if needed: len(lgk) = n_k < y_LF.shape[1]
+        if len(lgk) < y_LF.shape[1]:
+            y_LF = y_LF.reshape(y_LF.shape[0], -1, len(lgk))
         return 10**lgk, 10**y_LF
     
     def predict_LHr(self, x):
         x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
         # lg to linear
         lgk, ratio_LH = self.single_LHr.predict(x)
+        if len(lgk) < ratio_LH.shape[1]:
+            ratio_LH = ratio_LH.reshape(ratio_LH.shape[0], -1, len(lgk))
         return 10**lgk, ratio_LH
     
     def predict(self, x):
