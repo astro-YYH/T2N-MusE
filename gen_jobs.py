@@ -13,7 +13,7 @@ template = """#!/bin/bash
 #SBATCH -A AST21005
 #SBATCH --output=%x-%j.out
 
-set -euo pipefail
+# set -euo pipefail
 
 source ~/.bashrc
 conda activate pytorch-env

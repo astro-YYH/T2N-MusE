@@ -121,7 +121,6 @@ if __name__ == "__main__":
     parser.add_argument('--decay', type=float, default=None, help='AdamW weight decay')
     parser.add_argument('--retrain', action='store_true', help='Retrain the model')  # ignore provided hyperparameters
     parser.add_argument('--train_one', action='store_true', help='train the model with a given set of hyperparameters')
-    parser.add_argument('--i_z', action='store_true', help='train the model with a given set of hyperparameters')
 
     args = parser.parse_args()
 
