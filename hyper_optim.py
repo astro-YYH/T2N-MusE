@@ -122,6 +122,8 @@ if __name__ == "__main__":
     parser.add_argument('--retrain', action='store_true', help='Retrain the model')  # ignore provided hyperparameters
     parser.add_argument('--train_one', action='store_true', help='train the model with a given set of hyperparameters')
 
+    parser.add_argument('--pca_allz', action='store_true', help='PCA on all redshifts')  # PCA on all redshifts
+
     args = parser.parse_args()
 
     train_kfold = train_model_kfold_2r if args.k2r else train_model_kfold
