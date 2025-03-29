@@ -210,7 +210,8 @@ if __name__ == "__main__":
         y_temp = y.reshape(-1, n_z, n_k)
         y = y_temp[:, i_z, :].reshape(-1, len(i_z) * n_k)
         n_z = len(i_z)  # update the number of redshifts
-        print(f"Number of target redshifts: {n_z}")
+
+    print(f"Number of target redshifts: {n_z}")
 
     # normalize the input data if bounds are provided
     if args.bound_x is not None:
@@ -228,8 +229,6 @@ if __name__ == "__main__":
         else:
             # PCA on each redshift separately
             # pca per redshift
-            
-            print(f"Number of target redshifts: {n_z}")
 
             # the number of coefficients we keep
             n_pc_zs = []
