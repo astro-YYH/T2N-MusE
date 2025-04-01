@@ -56,22 +56,25 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         if self.pca_components is not None and self.pca_mean is not None:
             if self.n_pc_zs is None:
                 print('n_pc_zs is None, using the only PCA component')
-                y_pred = y_pred @ self.pca_components.to(self.device) + self.pca_mean.to(self.device)
+                y_pred = y_pred @ self.pca_components.to(self.device) + self.pca_mean.to(self.device)  # deprecated, will be removed in the future
             else:
                 # get the offset of the PCA coefficients from n_pc_zs
-                offset_pc_zs = np.insert(np.cumsum(self.n_pc_zs[:-1]), 0, 0)
+                offset_pc_zs = np.insert(np.cumsum(self.n_pc_zs[:-1]).astype(int), 0, 0)
 
                 n_k = self.pca_components[0].shape[1]  # number of k bins
                 n_z = len(self.n_pc_zs)
                 # y_pred_new initialized to zeros in the shape of full dimension
                 y_pred_new = torch.zeros(y_pred.shape[0], n_k * n_z, device=self.device)
-                for i in range(len(self.n_pc_zs)):
+                for i in range(n_z):
                     ik_start = i * n_k
                     ik_end = ik_start + n_k
 
                     # index of coefficient
                     ic_start = offset_pc_zs[i]
                     ic_end = offset_pc_zs[i] + self.n_pc_zs[i]
+
+                    # print the indices
+                    print('i', i, 'ik_start', ik_start, 'ik_end', ik_end, 'ic_start', ic_start, 'ic_end', ic_end)
                     # inverse transform for this redshift bin
                     y_pred_new[:, ik_start:ik_end] = y_pred[:, ic_start:ic_end] @ self.pca_components[i] + self.pca_mean[i]
 

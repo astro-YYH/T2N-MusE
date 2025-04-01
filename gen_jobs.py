@@ -1,9 +1,12 @@
 import os
 
 # Range of redshift bins
-z_bins = list(range(34))  # 0 to 33
+z_bins = list(range(1))  # 0 to 33
 
-# Your z00 job template (customize if needed)
+# You can control this
+min_pca = 0.999
+
+# Your job template
 template = """#!/bin/bash
 #SBATCH --job-name=z{i_z:02d}
 #SBATCH --time=0-48:00:00
@@ -12,8 +15,6 @@ template = """#!/bin/bash
 #SBATCH --partition=gh
 #SBATCH -A AST21005
 #SBATCH --output=%x-%j.out
-
-# set -euo pipefail
 
 source ~/.bashrc
 conda activate pytorch-env
@@ -29,7 +30,7 @@ i_z="{i_z}"
 # Build suffix like _z00
 suffix="_z{suffix}"
 
-COMMON_ARGS="--trials=80 --save_kfold --save_best --lr=0.01 --zero_centering --min_pca=.99999"
+COMMON_ARGS="--trials=80 --save_kfold --save_best --lr=0.01 --zero_centering --min_pca={min_pca}"
 
 TEST_FOLDS="144,145,146,168,169,170,195,196,197,204,205,206,336,337,338"
 
@@ -59,14 +60,13 @@ wait
 echo "✅ All jobs finished at: $(date)"
 """
 
-
-# Output directory
+# Create the job scripts
 os.makedirs("./", exist_ok=True)
 
 for z in z_bins:
-    job_script = template.format(i_z=z, suffix=f"{z:02d}")
+    job_script = template.format(i_z=z, suffix=f"{z:02d}", min_pca=min_pca)
     filename = f"./opt_submit_z{z:02d}.sh"
     with open(filename, "w") as f:
         f.write(job_script)
 
-print(f"✅ Generated {len(z_bins)} job scripts")
+print(f"✅ Generated {len(z_bins)} job scripts with min_pca={min_pca}")
