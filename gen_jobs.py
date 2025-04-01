@@ -1,12 +1,13 @@
 import os
 
-# Range of redshift bins
-z_bins = list(range(1))  # 0 to 33
-
-# You can control this
+# Redshift bins and PCA threshold
+z_bins = list(range(1))  # Redshift indices: 0 to 33
 min_pca = 0.999
 
-# Your job template
+# Format PCA string for log suffix, e.g., 0.99999 → p99999
+pca_tag = f"p{str(min_pca).replace('.', '')}"
+
+# Job script template
 template = """#!/bin/bash
 #SBATCH --job-name=z{i_z:02d}
 #SBATCH --time=0-48:00:00
@@ -27,8 +28,8 @@ echo "🔹 Start time: $(date)"
 
 i_z="{i_z}"
 
-# Build suffix like _z00
-suffix="_z{suffix}"
+# Build suffix like _z00_p99999
+suffix="_z{suffix}_{pca_tag}"
 
 COMMON_ARGS="--trials=80 --save_kfold --save_best --lr=0.01 --zero_centering --min_pca={min_pca}"
 
@@ -60,13 +61,13 @@ wait
 echo "✅ All jobs finished at: $(date)"
 """
 
-# Create the job scripts
-os.makedirs("./", exist_ok=True)
-
+# Generate job scripts
 for z in z_bins:
-    job_script = template.format(i_z=z, suffix=f"{z:02d}", min_pca=min_pca)
-    filename = f"./opt_submit_z{z:02d}.sh"
+    suffix = f"{z:02d}"
+    job_script = template.format(i_z=z, suffix=suffix, pca_tag=pca_tag, min_pca=min_pca)
+    filename = f"./opt_submit_z{suffix}_{pca_tag}.sh"
     with open(filename, "w") as f:
         f.write(job_script)
 
 print(f"✅ Generated {len(z_bins)} job scripts with min_pca={min_pca}")
+
