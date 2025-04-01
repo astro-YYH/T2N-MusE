@@ -168,10 +168,11 @@ if __name__ == "__main__":
             hidden_size = checkpoint['hidden_size']
             num_layers = checkpoint['num_layers']
             decay = checkpoint['decay']
+            print(f"type Hidden size: {type(hidden_size)}, Number of layers: {type(num_layers)}, Decay: {type(decay)}")
             # lgk
             lgk = checkpoint['lgk']
             # activation
-            activation = checkpoint['activation']
+            activation = act_dict[checkpoint['activation']]
             # and make a copy of the old model
             old_model_path = os.path.join(args.model_dir, f"best_model_old.pth")
             os.system(f"cp {model_path} {old_model_path}")
