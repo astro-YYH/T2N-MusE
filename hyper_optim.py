@@ -168,7 +168,6 @@ if __name__ == "__main__":
             hidden_size = checkpoint['hidden_size']
             num_layers = checkpoint['num_layers']
             decay = checkpoint['decay']
-            print(f"type Hidden size: {type(hidden_size)}, Number of layers: {type(num_layers)}, Decay: {type(decay)}")
             # lgk
             lgk = checkpoint['lgk']
             # activation
