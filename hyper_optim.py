@@ -173,7 +173,7 @@ if __name__ == "__main__":
             # activation
             activation = checkpoint['activation']
             # and make a copy of the old model
-            old_model_path = os.path.join(args.model_dir, f"{args.model_name}_old.pth")
+            old_model_path = os.path.join(args.model_dir, f"best_model_old.pth")
             os.system(f"cp {model_path} {old_model_path}")
         elif hidden_size is None or num_layers is None or decay is None:
             raise ValueError("Please provide hidden_size, num_layers and decay for training a single model.")
