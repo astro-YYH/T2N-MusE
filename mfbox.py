@@ -73,8 +73,6 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
                     ic_start = offset_pc_zs[i]
                     ic_end = offset_pc_zs[i] + self.n_pc_zs[i]
 
-                    # print the indices
-                    print('i', i, 'ik_start', ik_start, 'ik_end', ik_end, 'ic_start', ic_start, 'ic_end', ic_end)
                     # inverse transform for this redshift bin
                     y_pred_new[:, ik_start:ik_end] = y_pred[:, ic_start:ic_end] @ self.pca_components[i] + self.pca_mean[i]
 
@@ -97,7 +95,7 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         Returns:
             RescaledNN instance
         """
-        checkpoint = torch.load(path, map_location=device)
+        checkpoint = torch.load(path, map_location=device, weights_only=False)
         dim_x, dim_y = extract_input_output_dims(state_dict=checkpoint['state_dict'])
 
         # Activation function lookup
@@ -114,7 +112,7 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         if 'mean_std' in checkpoint:
             pca_components = checkpoint['mean_std']['pca_components'] if checkpoint['mean_std']['pca_components'] is not None else None
             pca_components = [torch.tensor(pc, dtype=torch.float32, device=device) for pc in pca_components] if pca_components is not None else None
-            pca_mean = torch.tensor(checkpoint['mean_std']['pca_mean'], dtype=torch.float32, device=device) if checkpoint['mean_std']['pca_mean'] is not None else None
+            pca_mean = checkpoint['mean_std']['pca_mean'] if checkpoint['mean_std']['pca_mean'] is not None else None
             pca_mean = [torch.tensor(pm, dtype=torch.float32, device=device) for pm in pca_mean] if pca_mean is not None else None
             std_mean =  None
             std_scale = None
