@@ -272,7 +272,7 @@ if __name__ == "__main__":
         hidden_size_choices = list(range(16, 513, 16))  # Generates [16, 32, 48, ..., 512]
         num_layers_choices = [1, 2, 3, 4, 5, 6, 7]
         # activation_choices = [nn.ReLU, nn.Tanh, nn.Sigmoid]
-        decay_lower, decay_upper = 1e-9, .5e-4
+        decay_lower, decay_upper = 1e-9, 5e-6
         
         # Define the hyperparameter search space
         space = {
@@ -308,8 +308,10 @@ if __name__ == "__main__":
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
         # Define a refined search space
-        hidden_size_choices_fine = list(range(max(16, best_hidden_size - 32), (best_hidden_size + 32), 2))  
-        num_layers_choices_fine = list(range(max(1, best_num_layers - 1), ((best_num_layers + 1) + 1)))
+        hidden_size_choices_fine = list(range(max(16, best_hidden_size - 24), (best_hidden_size + 24), 2))  
+        # num_layers_choices_fine = list(range(max(1, best_num_layers - 1), ((best_num_layers + 1) + 1)))
+        # do not change the number of layers (changing the number of layers often leads to a worse model)
+        num_layers_choices_fine = [best_num_layers]  # Keep the number of layers fixed
         decay_lower_fine = best_decay / 3  # Search around the best decay
         decay_upper_fine = best_decay * 3  
 
