@@ -354,5 +354,11 @@ if __name__ == "__main__":
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     elapsed_time = time.time() - start_time
-    formatted_time = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-    print(f"⏱ Elapsed time: {formatted_time}\n")
+
+    total_seconds = int(elapsed_time)
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}"
+    print(f"⏱ Elapsed time: {formatted_time}")
