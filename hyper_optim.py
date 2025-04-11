@@ -3,7 +3,7 @@ import time
 import argparse
 import numpy as np
 import torch
-from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
+from hyperopt import hp, fmin, tpe, Trials, STATUS_OK, space_eval
 from train_model import train_NN, train_model_kfold, train_model_kfold_2r
 from mfbox import act_dict
 # import tqdm
@@ -304,11 +304,14 @@ if __name__ == "__main__":
         best_num_layers = num_layers_choices[best_hyperparams['num_layers']]
         best_decay = best_hyperparams['decay']
 
+        best_loss = min([trial['result']['loss'] for trial in trials.trials[:-1]]) if len(trials.trials) > 1 else float('inf')
+
         print("\n🎯 Best Hyperparameters Found in First Round:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
         # Define a refined search space
         hidden_size_choices_fine = list(range(max(16, best_hidden_size - 24), (best_hidden_size + 24), 2))  
+
         # num_layers_choices_fine = list(range(max(1, best_num_layers - 1), ((best_num_layers + 1) + 1)))
         # do not change the number of layers (changing the number of layers often leads to a worse model)
         num_layers_choices_fine = [best_num_layers]  # Keep the number of layers fixed
@@ -331,15 +334,21 @@ if __name__ == "__main__":
             trials=trials_fine,
             show_progressbar=show_progress
         )
+        best_loss_fine = min([trial['result']['loss'] for trial in trials_fine.trials[:-1]]) if len(trials_fine.trials) > 1 else float('inf')
 
-        # ✅ Directly assign the fine-tuned best hyperparameters
-        best_hyperparams = best_hyperparams_fine
-        best_params_fine = {'hidden_size': hidden_size_choices_fine[best_hyperparams['hidden_size']], 'decay': best_hyperparams['decay'], 'num_layers': num_layers_choices_fine[best_hyperparams['num_layers']]}
-        
-        
+        if best_loss_fine < best_loss:
+            # ✅ Directly assign the fine-tuned best hyperparameters
+            best_hidden_size = hidden_size_choices_fine[best_hyperparams_fine['hidden_size']]
+            best_num_layers = num_layers_choices_fine[best_hyperparams_fine['num_layers']]
+            best_decay = best_hyperparams_fine['decay']
+        else:
+            # ✅ Keep the original best hyperparameters
+            print("Fine-tuning did not yield better results. Keeping the original best hyperparameters.")
+
+        best_params = {'hidden_size': best_hidden_size, 'decay': best_decay, 'num_layers': best_num_layers}
+
         print("\n🎯 Best Hyperparameters Found:")
-        print('hidden_size', best_params_fine['hidden_size'], 'decay', best_params_fine['decay'], 'num_layers', best_params_fine['num_layers'])
-        best_params = best_params_fine
+        print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
     # Evaluate the model with the best hyperparameters
     _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
