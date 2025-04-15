@@ -26,7 +26,7 @@ date
 # # cut at 1.5
 # python hyper_optim.py --trials=80 --data_x=./data/N_L1A_c1.5/train_input.txt --data_y=./data/N_L1A_c1.5/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_L1A_c1.5 --save_best --lr=0.01 --kfolds=564 --lgk=./data/N_L1A_c1.5/kf.txt --zero_centering --test_folds="144, 145, 146, 168, 169, 170, 195, 196, 197, 204, 205, 206, 336, 337, 338" --k2r --min_pca=.99999 &> N_L1A_c1.5.log &
 # wide
-# python hyper_optim.py --trials=80 --data_x=./data/W_L1A/train_input.txt --data_y=./data/W_L1A/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/W_L1A --save_best --lr=0.01 --kfolds=564 --lgk=./data/W_L1A/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --k2r --min_pca=.99999 &> W_L1A.log &
+python hyper_optim.py --trials=80 --data_x=./data/W_L1A/train_input.txt --data_y=./data/W_L1A/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/W_L1A --save_best --lr=0.01 --kfolds=564 --lgk=./data/W_L1A/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --k2r --min_pca=.99999 &> W_L1A.log &
 
 # L1HA:
 # python hyper_optim.py --trials=80 --data_x=./data/N_LHA_z0/train_input.txt --data_y=./data/N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_LHA_z0_0c --save_best --lr=0.01 --kfolds=15 --lgk=./data/N_L1A_z0/kf.txt --zero_centering --trials_train=5 &> N_LHA_z0_0c.log &
