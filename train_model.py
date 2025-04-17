@@ -286,7 +286,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
 
 def train_model_kfold_beta(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
-                      device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, 
+                      device='cuda', shuffle=False, activation=nn.SiLU(), zero_centering=False, 
                       lgk=None, test_folds=None):  # do not use this function,. since it breaks cross-validation
     """
     Train model using K-Fold Cross-Validation with an option to specify test folds.
@@ -389,7 +389,7 @@ def train_model_kfold_beta(num_layers, hidden_size, x_data, y_data, decay=0, k=5
 
 def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
-                      device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, 
+                      device='cuda', shuffle=False, activation=nn.SiLU(), zero_centering=False, 
                       lgk=None, test_folds=None, num_trials=1, mean_std=None):
     """
     Train model using K-Fold Cross-Validation with an option to specify test folds.
@@ -441,8 +441,13 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     kf_1 = KFold(n_splits=k-len(test_folds), shuffle=True, random_state=42) if shuffle else KFold(n_splits=k-len(test_folds))
 
     for fold, (train_idx, val_idx) in enumerate(kf_1.split(x_data_1)):
-        if fold >= len(test_folds): # for now, only test the first few folds
+        if tested_count == total_folds_to_test: # for now, only test the first few folds
             break
+
+        # avoid testing the fold in the test_folds in the first round
+        if fold in test_folds:
+            print(f"⚠️ Skipping fold {fold} in the first round of training.")
+            continue
 
         tested_count += 1
         print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k-1} 🔹")
