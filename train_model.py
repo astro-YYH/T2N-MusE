@@ -427,30 +427,33 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     tested_count = 0  # Counter for completed folds
 
     # first round of training: independent training for each fold
-    print("🔹 Starting Round 1 of K-Fold Training 🔹")
 
     # exclude test folds from training x_data and y_data
     # x_data and y_data are PyTorch tensors
     mask = torch.ones(len(x_data), dtype=torch.bool)  # Create a mask of all True values
     mask[test_folds] = False  # Set test fold indices to False
 
-    # Apply the mask to exclude test folds
+    # Apply the mask to exclude the points we want to test against
+    inds = np.arange(len(x_data))
+    inds_1 = inds[mask]  # Indices of the points we will use in the first round of training
     x_data_1 = x_data[mask]
     y_data_1 = y_data[mask]
 
-    kf_1 = KFold(n_splits=k-len(test_folds), shuffle=True, random_state=42) if shuffle else KFold(n_splits=k-len(test_folds))
+    # print excluded folds
+    print(f"🔹 Excluded the {total_folds_to_test} target test points from the first round of training 🔹")
+
+    # the number of folds in the first round of training
+    k1 = k - len(test_folds)
+    kf_1 = KFold(n_splits=k1, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k1)
+
+    print(f"🔹 Starting Round 1 of K-Fold Training: the first {total_folds_to_test} folds from the {k1} folds will be used 🔹")
 
     for fold, (train_idx, val_idx) in enumerate(kf_1.split(x_data_1)):
         if tested_count == total_folds_to_test: # for now, only test the first few folds
             break
 
-        # avoid testing the fold in the test_folds in the first round
-        if fold in test_folds:
-            print(f"⚠️ Skipping fold {fold} in the first round of training.")
-            continue
-
         tested_count += 1
-        print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k-1} 🔹")
+        print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k1-1} (point {inds_1[fold]}/{k-1}) 🔹")
 
         train_x, train_y = x_data_1[train_idx], y_data_1[train_idx]
         val_x, val_y = x_data_1[val_idx], y_data_1[val_idx]

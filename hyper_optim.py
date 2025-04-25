@@ -76,6 +76,15 @@ def pca_decomp(y, explained_min=0.999, standardize=False):
 
         return y, mean_std
 
+def load_data(file_path):
+    if file_path.endswith('.npy'):
+        data = np.load(file_path)
+    elif file_path.endswith('.txt'):
+        data = np.loadtxt(file_path)
+    else:
+        raise ValueError("Unsupported file format. Please provide a .npy or .txt file.")
+    return data
+
 if __name__ == "__main__":
     # command line arguments
     parser = argparse.ArgumentParser(description='Hyperparameter Optimization')
@@ -188,9 +197,9 @@ if __name__ == "__main__":
     # Enable CUDA optimizations
     torch.backends.cudnn.benchmark = True
     
-    # Load the data
-    x = np.loadtxt(args.data_x)
-    y = np.loadtxt(args.data_y)
+    # Load the data: use loadtxt to load the data if the file is a text file (.txt), or use np.load if the file is a numpy file (.npy)
+    x = load_data(args.data_x)
+    y = load_data(args.data_y)
 
     n_z = y.shape[1] // n_k  # total number of redshifts
 
