@@ -390,7 +390,7 @@ def train_model_kfold_beta(num_layers, hidden_size, x_data, y_data, decay=0, k=5
 def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
                       device='cuda', shuffle=False, activation=nn.SiLU(), zero_centering=False, 
-                      lgk=None, test_folds=None, num_trials=1, mean_std=None):
+                      lgk=None, test_folds=None, num_trials=1, mean_std=None, trials_k1=None):
     """
     Train model using K-Fold Cross-Validation with an option to specify test folds.
 
@@ -446,14 +446,16 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     k1 = k - len(test_folds)
     kf_1 = KFold(n_splits=k1, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k1)
 
-    print(f"🔹 Starting Round 1 of K-Fold Training: the first {total_folds_to_test} folds from the {k1} folds will be used 🔹")
+    trials_k1 = trials_k1 if trials_k1 is not None else total_folds_to_test
+
+    print(f"🔹 Starting Round 1 of K-Fold Training: the first {trials_k1} folds from the {k1} folds will be used 🔹")
 
     for fold, (train_idx, val_idx) in enumerate(kf_1.split(x_data_1)):
-        if tested_count == total_folds_to_test: # for now, only test the first few folds
+        if tested_count == trials_k1: # for now, only test the first few folds
             break
 
         tested_count += 1
-        print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k1-1} (point {inds_1[fold]}/{k-1}) 🔹")
+        print(f"🔹 Fold {tested_count}/{trials_k1}: Testing fold index {fold}/{k1-1} (point {inds_1[fold]}/{k-1}) 🔹")
 
         train_x, train_y = x_data_1[train_idx], y_data_1[train_idx]
         val_x, val_y = x_data_1[val_idx], y_data_1[val_idx]
@@ -555,7 +557,7 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
 def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
                       device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, 
-                      lgk=None, test_folds=None, num_trials=1, mean_std=None):
+                      lgk=None, test_folds=None, num_trials=1, mean_std=None, trials_k1=None):  # trials_k1 is not used here
     """
     Train model using K-Fold Cross-Validation with an option to specify test folds.
 
