@@ -28,7 +28,7 @@ date
 # wide
 # python hyper_optim.py --trials=80 --data_x=./data/W_L1A/train_input.txt --data_y=./data/W_L1A/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/W_L1A --save_best --lr=0.01 --kfolds=564 --lgk=./data/W_L1A/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --k2r --min_pca=.99999 &> W_L1A.log &
 # combined
-python hyper_optim.py --trials=80 --data_x=./data/L1A/train_input.npy --data_y=./data/L1A/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L1A --save_best --lr=0.01 --kfolds=1128 --lgk=./data/L1A/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524, 708, 709, 710, 732, 733, 734, 759, 760, 761, 768, 769, 770, 900, 901, 902" --k2r --trials_k1=21 --min_pca=.99999 &> L1A.log &
+python hyper_optim.py --trials=60 --data_x=./data/L1A/train_input.npy --data_y=./data/L1A/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L1A --save_best --lr=0.01 --kfolds=1128 --lgk=./data/L1A/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524, 708, 709, 710, 732, 733, 734, 759, 760, 761, 768, 769, 770, 900, 901, 902" --k2r --min_pca=.99999 &> L1A.log &
 
 # L1HA:
 # python hyper_optim.py --trials=80 --data_x=./data/N_LHA_z0/train_input.txt --data_y=./data/N_LHA_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_LHA_z0_0c --save_best --lr=0.01 --kfolds=15 --lgk=./data/N_L1A_z0/kf.txt --zero_centering --trials_train=5 &> N_LHA_z0_0c.log &
@@ -44,7 +44,7 @@ python hyper_optim.py --trials=80 --data_x=./data/L1A/train_input.npy --data_y=.
 # wide
 # python hyper_optim.py --trials=80 --data_x=./data/W_L1HAr/train_input.txt --data_y=./data/W_L1HAr/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/W_L1HAr --save_best --lr=0.01 --kfolds=21 --lgk=./data/W_L1HAr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> W_L1HAr.log &
 # combined
-python hyper_optim.py --trials=80 --trials_train=5 --data_x=./data/L1HAr/train_input.npy --data_y=./data/L1HAr/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L1HAr --save_best --lr=0.01 --kfolds=36 --lgk=./data/L1HAr/kf.txt --zero_centering --min_pca=.99999 &> L1HAr.log &
+python hyper_optim.py --trials=60 --trials_train=5 --data_x=./data/L1HAr/train_input.npy --data_y=./data/L1HAr/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L1HAr --save_best --lr=0.01 --kfolds=36 --lgk=./data/L1HAr/kf.txt --zero_centering --min_pca=.99999 &> L1HAr.log &
 
 # L2:
 # python hyper_optim.py --trials=60 --data_x=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/train_input_fidelity_0.txt --data_y=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/train_output_fidelity_0.txt --bound_x=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_L2_z0_0c --save_best --lr=0.01 --kfolds=30 --lgk=./data/narrow/matter_power_564_Box250_Part750_15_Box1000_Part3000_z0/kf.txt --zero_centering &> N_L2_z0_0c.log &
@@ -54,7 +54,7 @@ python hyper_optim.py --trials=80 --trials_train=5 --data_x=./data/L1HAr/train_i
 # wide
 # python hyper_optim.py --trials=80 --data_x=./data/W_L2/train_input.txt --data_y=./data/W_L2/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/W_L2 --save_best --lr=0.01 --kfolds=564 --lgk=./data/W_L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --k2r --min_pca=.99999 &> W_L2.log &
 # combined
-python hyper_optim.py --trials=80 --data_x=./data/L2/train_input.npy --data_y=./data/L2/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L2 --save_best --lr=0.01 --kfolds=1128 --lgk=./data/L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524, 708, 709, 710, 732, 733, 734, 759, 760, 761, 768, 769, 770, 900, 901, 902" --k2r --trials_k1=21 --min_pca=.99999 &> L2.log &
+python hyper_optim.py --trials=60 --data_x=./data/L2/train_input.npy --data_y=./data/L2/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L2 --save_best --lr=0.01 --kfolds=1128 --lgk=./data/L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524, 708, 709, 710, 732, 733, 734, 759, 760, 761, 768, 769, 770, 900, 901, 902" --k2r --min_pca=.99999 &> L2.log &
 
 # LHr:
 # python hyper_optim.py --trials=80 --data_x=./data/N_LHr_stitch_z0/train_input.txt --data_y=./data/N_LHr_stitch_z0/train_output.txt --bound_x=./data/narrow/matter_power_564_Box1000_Part750_15_Box1000_Part3000_z0/input_limits.txt --save_kfold --model_dir=models/N_LHr_stitch_z0_pca --save_best --lr=0.01 --kfolds=15 --lgk=./data/N_xLH_stitch_z0/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> N_LHr_stitch_z0_pca.log &
@@ -64,7 +64,7 @@ python hyper_optim.py --trials=80 --data_x=./data/L2/train_input.npy --data_y=./
 # wide
 # python hyper_optim.py --trials=80 --data_x=./data/W_L2Hr/train_input.txt --data_y=./data/W_L2Hr/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/W_L2Hr --save_best --lr=0.01 --kfolds=21 --lgk=./data/W_L2Hr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> W_L2Hr.log &
 # combined
-python hyper_optim.py --trials=80 --data_x=./data/L2Hr/train_input.npy --data_y=./data/L2Hr/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L2Hr --save_best --lr=0.01 --kfolds=36 --lgk=./data/L2Hr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> L2Hr.log &
+python hyper_optim.py --trials=60 --data_x=./data/L2Hr/train_input.npy --data_y=./data/L2Hr/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L2Hr --save_best --lr=0.01 --kfolds=36 --lgk=./data/L2Hr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> L2Hr.log &
 
 sleep 100
 nvidia-smi
