@@ -89,6 +89,8 @@ if __name__ == "__main__":
     # command line arguments
     parser = argparse.ArgumentParser(description='Hyperparameter Optimization')
     parser.add_argument('--trials', type=int, default=1, help='Number of trials for optimization')
+    parser.add_argument('--trials_fine', type=int, default=None, help='Number of trials for fine-tuning')
+    parser.add_argument('--fine_only', action='store_true', help='Only do fine-tuning around a given set of hyperparameters')
     parser.add_argument('--model_dir', type=str, default='./', help='Path to save the model')
     # set the number of folds
     parser.add_argument('--kfolds', type=int, default=5, help='Number of folds for K-Fold CV')
@@ -300,24 +302,35 @@ if __name__ == "__main__":
         trials = Trials()
 
         trials_fine = Trials()
-        trials_fine_max = max(n_trials // 2,1)
+        n_trials_fine = max(n_trials // 2,1) if args.trials_fine is None else args.trials_fine
 
-        # Run Bayesian optimization
-        best_hyperparams = fmin(
-            fn=objective,        # Function to minimize (training + validation loss)
-            space=space,         # Hyperparameter search space
-            algo=tpe.suggest,    # Tree-structured Parzen Estimator (TPE)
-            max_evals=n_trials,        # Number of trials to run
-            trials=trials,        # Store results
-            show_progressbar=show_progress
-        )
-        best_hidden_size = hidden_size_choices[best_hyperparams['hidden_size']]
-        best_num_layers = num_layers_choices[best_hyperparams['num_layers']]
-        best_decay = best_hyperparams['decay']
+        if args.fine_only:
+            # If only fine-tuning is requested, set n_trials to 0
+            print("Fine-tuning only. Skipping initial search.")
+            # check if the hyperparameters are provided
+            if hidden_size is None or num_layers is None or decay is None:
+                raise ValueError("Please provide hidden_size, num_layers and decay for fine-tuning.")
+            best_hidden_size = hidden_size
+            best_num_layers = num_layers
+            best_decay = decay
+        else:
 
-        best_loss = min([trial['result']['loss'] for trial in trials.trials[:-1]]) if len(trials.trials) > 1 else float('inf')
+            # Run Bayesian optimization
+            best_hyperparams = fmin(
+                fn=objective,        # Function to minimize (training + validation loss)
+                space=space,         # Hyperparameter search space
+                algo=tpe.suggest,    # Tree-structured Parzen Estimator (TPE)
+                max_evals=n_trials,        # Number of trials to run
+                trials=trials,        # Store results
+                show_progressbar=show_progress
+            )
+            best_hidden_size = hidden_size_choices[best_hyperparams['hidden_size']]
+            best_num_layers = num_layers_choices[best_hyperparams['num_layers']]
+            best_decay = best_hyperparams['decay']
 
-        print("\n🎯 Best Hyperparameters Found in First Round:")
+            best_loss = min([trial['result']['loss'] for trial in trials.trials[:-1]]) if len(trials.trials) > 1 else float('inf')
+
+        print("\n🎯 Best Hyperparameters Found in the initial search:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
         # Define a refined search space
@@ -341,7 +354,7 @@ if __name__ == "__main__":
             fn=objective,
             space=space_fine,
             algo=tpe.suggest,
-            max_evals=trials_fine_max,  # Fewer trials for fine-tuning
+            max_evals=n_trials_fine,  # Fewer trials for fine-tuning
             trials=trials_fine,
             show_progressbar=show_progress
         )
