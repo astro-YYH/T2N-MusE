@@ -314,10 +314,7 @@ if __name__ == "__main__":
             best_num_layers = num_layers
             best_decay = decay
             # only train the model with the provided hyperparameters
-            print(f"Training the model with the provided hyperparameters...")
-            train_loss, val_loss, _, _ = train_kfold(best_num_layers, best_hidden_size, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, trials_k1=args.trials_k1)
-            best_loss = (train_loss + val_loss) / 2
-            print(f"Training Loss: {train_loss:.6f}, Validation Loss: {val_loss:.6f}, Best loss: {best_loss:.6f}\n")
+            train_loss, val_loss, _, _ = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
 
         else:
 
