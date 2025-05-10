@@ -528,7 +528,6 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
     if val_x is None or val_y is None:
         val_provided = False
         print(f"⚠️ No validation data provided. Regularized loss will be used to select the best model.")
-        val_x, val_y = train_x, train_y
 
     best_model = None
     best_summed_loss = float("inf")
