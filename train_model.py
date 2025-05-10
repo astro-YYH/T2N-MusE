@@ -554,7 +554,7 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
             # print(f"✅ Best model selected for this fold (Validation Loss + Training Loss: {best_summed_loss:.6e})")
     #retrain and save the best model
 
-    print(f"✅ Best model selected mean(Validation Loss,Training Loss): {(best_train_loss, best_val_loss)/2:.6e}")
+    print(f"✅ Best model selected mean(Validation Loss,Training Loss): {(best_train_loss+best_val_loss)/2:.6e}")
     print(f"🔄 Retraining the best model with seed {seed_best}...")
     if save_model and best_model is not None:
         best_train_loss, best_val_loss, best_model, lr_best, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y,
