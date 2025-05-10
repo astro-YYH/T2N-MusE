@@ -462,12 +462,16 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     x_data_1 = x_data[mask]
     y_data_1 = y_data[mask]
 
-    # print excluded folds
-    print(f"🔹 Excluded the {total_folds_to_test} target test points from the first round of training 🔹")
+    # use the excluded test points as the validation set in the first round
+    x_data_1_val = x_data[test_folds]
+    y_data_1_val = y_data[test_folds]
+
+    # print training and validation data
+    print(f"🔹 Excluded the {total_folds_to_test} target test points from training and test on them  🔹")
 
     print(f"🔹 Starting Round 1 of Training: searching for a good minimum 🔹")
     # no real validation loss here, just training
-    train_loss, val_loss, model, lr_fine = train_fold_multiple_times(num_layers, hidden_size, x_data_1, y_data_1,
+    train_loss, val_loss, model, lr_fine = train_fold_multiple_times(num_layers, hidden_size, x_data_1, y_data_1, x_data_1_val, y_data_1_val,
                  num_trials=num_trials, decay=decay, epochs=epochs, lr=lr, device=device, 
                  activation=activation, zero_centering=zero_centering)
         
