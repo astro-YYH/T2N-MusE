@@ -284,110 +284,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
 
 #     return avg_train_loss, avg_val_loss
 
-def train_model_kfold_beta(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
-                      epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
-                      device='cuda', shuffle=False, activation=nn.SiLU(), zero_centering=False, 
-                      lgk=None, test_folds=None):  # do not use this function,. since it breaks cross-validation
-    """
-    Train model using K-Fold Cross-Validation with an option to specify test folds.
-
-    Parameters:
-        num_layers: int - Number of layers in the NN.
-        hidden_size: int - Number of neurons per layer.
-        x_data: np.array - Input data.
-        y_data: np.array - Target data.
-        decay: float - Weight decay.
-        k: int - Number of folds.
-        epochs: int or None - Number of training epochs.
-        epochs_neuron: int - Epochs per neuron.
-        lr: float - Learning rate.
-        model_dir: str - Directory to save models.
-        save_kf_model: bool - Whether to save models.
-        device: str - Device for computation ('cuda' or 'cpu').
-        shuffle: bool - Shuffle data before splitting.
-        activation: nn.Module - Activation function.
-        zero_centering: bool - Whether to zero-center data.
-        lgk: any - Additional parameter.
-        test_folds: list or None - List of fold indices to test. If None, all folds are tested.
-
-    Returns:
-        tuple: (avg_train_loss, avg_val_loss)
-    """
-    epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
-    kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
-    fold_results = []
-
-    if test_folds is None:
-        test_folds = list(range(k))  # Use all folds if not specified
-
-    total_folds_to_test = len(test_folds)  # Total number of folds to test
-    tested_count = 0  # Counter for completed folds
-
-    # first round of training: independent training for each fold
-    print("🔹 Starting Round 1 of K-Fold Training 🔹")
-
-    for fold, (train_idx, val_idx) in enumerate(kf.split(x_data)):
-        if fold not in test_folds:
-            continue  # Skip unselected folds
-
-        tested_count += 1
-        print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k-1} 🔹")
-
-        train_x, train_y = x_data[train_idx], y_data[train_idx]
-        val_x, val_y = x_data[val_idx], y_data[val_idx]
-
-        kf_model_path = os.path.join(model_dir, f"model_fold{fold}.pth")
-
-        train_loss, val_loss, model, lr_fine = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
-                                        decay=decay, epochs=epochs, lr=lr, device=device, 
-                                        activation=activation, zero_centering=zero_centering, lgk=lgk)
-
-        fold_results.append((train_loss, val_loss, model, lr_fine))
-    # find the best model fold index
-    idx_best = np.argmin([train_loss + val_loss for train_loss, val_loss, _, _ in fold_results])
-    # best_model = fold_results[idx_best][2]
-    best_model = copy.deepcopy(fold_results[idx_best][2])
-    lr_best = fold_results[idx_best][3]
-
-    # print the best model fold
-    print(f"\n✅ Best Model Selected: model fold {test_folds[idx_best]}")
-
-    fold_results = []  # Reset fold results for second round
-    tested_count = 0  # Reset tested count for second round
-
-    # second round of training: retrain using the best model's weights
-    for fold, (train_idx, val_idx) in enumerate(kf.split(x_data)):
-        if fold not in test_folds:
-            continue  # Skip unselected folds
-
-        tested_count += 1
-        print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k-1} 🔹")
-
-        train_x, train_y = x_data[train_idx], y_data[train_idx]
-        val_x, val_y = x_data[val_idx], y_data[val_idx]
-
-        kf_model_path = os.path.join(model_dir, f"model_fold{fold}.pth")
-
-        train_loss, val_loss, model, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
-                                        decay=decay, epochs=epochs, lr=lr_best, device=device, 
-                                        save_model=save_kf_model, model_path=kf_model_path, 
-                                        activation=activation, zero_centering=zero_centering, lgk=lgk, initial_model=copy.deepcopy(best_model))
-
-        fold_results.append((train_loss, val_loss, model))
-    
-    # best model
-    best_model = min(fold_results, key=lambda x: x[0] + x[1])[2]
-
-    if fold_results:
-        avg_val_loss = np.mean([val_loss for _, val_loss, _ in fold_results])
-        avg_train_loss = np.mean([train_loss for train_loss, _, _ in fold_results])
-        print(f"✅ Average Loss Across Selected Folds: training: {avg_train_loss:.6e}, validation: {avg_val_loss:.6e}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6e}\n")
-        return avg_train_loss, avg_val_loss, best_model, lr_best
-    else:
-        print("⚠️ No folds were selected for testing. Returning None.")
-        return None, None, None, None
-
-def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
+def train_model_kfold_2r_old(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
                       device='cuda', shuffle=False, activation=nn.SiLU(), zero_centering=False, 
                       lgk=None, test_folds=None, num_trials=1, mean_std=None, trials_k1=None):
@@ -508,7 +405,112 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     else:
         print("⚠️ No folds were selected for testing. Returning None.")
         return None, None, None, None
+
+# update 2-round training: no k-fold training in the first round, but only multiple trials with distinct random seeds
+# and then use the best model to train on the selected folds in the second round
+def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
+                      epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
+                      device='cuda', shuffle=False, activation=nn.SiLU(), zero_centering=False, 
+                      lgk=None, test_folds=None, num_trials=None, mean_std=None):
+    """
+    Train model using K-Fold Cross-Validation with an option to specify test folds.
+
+    Parameters:
+        num_layers: int - Number of layers in the NN.
+        hidden_size: int - Number of neurons per layer.
+        x_data: np.array - Input data.
+        y_data: np.array - Target data.
+        decay: float - Weight decay.
+        k: int - Number of folds.
+        epochs: int or None - Number of training epochs.
+        epochs_neuron: int - Epochs per neuron.
+        lr: float - Learning rate.
+        model_dir: str - Directory to save models.
+        save_kf_model: bool - Whether to save models.
+        device: str - Device for computation ('cuda' or 'cpu').
+        shuffle: bool - Shuffle data before splitting.
+        activation: nn.Module - Activation function.
+        zero_centering: bool - Whether to zero-center data.
+        lgk: any - Additional parameter.
+        test_folds: list or None - List of fold indices to test. If None, all folds are tested.
+
+    Returns:
+        tuple: (avg_train_loss, avg_val_loss)
+    """
+
+    epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
+    kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
+
+    if test_folds is None:
+        test_folds = list(range(k))  # Use all folds if not specified
+
+    if num_trials is None:
+        print("⚠️ No trials specified. Setting num_trials to the number of test points by default.")
+        num_trials = len(test_folds)  # Number of trials in the first round
+
+    total_folds_to_test = len(test_folds)  # Total number of folds to test
+    tested_count = 0  # Counter for completed folds
+
+    # first round of training: train on the data excluding the test points
+
+    mask = torch.ones(len(x_data), dtype=torch.bool)  # Create a mask of all True values
+    mask[test_folds] = False  # Set test fold indices to False
+
+    # Apply the mask to exclude the points we want to test against
+    inds = np.arange(len(x_data))
+    # inds_1 = inds[mask]  # Indices of the points we will use in the first round of training
+    x_data_1 = x_data[mask]
+    y_data_1 = y_data[mask]
+
+    # print excluded folds
+    print(f"🔹 Excluded the {total_folds_to_test} target test points from the first round of training 🔹")
+
+    print(f"🔹 Starting Round 1 of Training: searching for a good minimum 🔹")
+    # no real validation loss here, just training
+    train_loss, val_loss, model, lr_fine = train_fold_multiple_times(num_layers, hidden_size, x_data_1, y_data_1, x_data_1, y_data_1,
+                 num_trials=num_trials, decay=decay, epochs=epochs, lr=lr, device=device, 
+                 activation=activation, zero_centering=zero_centering)
+        
+    # best_model = fold_results[idx_best][2]
+    best_model = copy.deepcopy(model)
+    lr_best = lr_fine
+
+    fold_results = []  # Reset fold results for second round
+    tested_count = 0  # Reset tested count for second round
+
+    # second round of training: retrain using the best model's weights
+    for fold, (train_idx, val_idx) in enumerate(kf.split(x_data)):
+        if fold not in test_folds:
+            continue  # Skip unselected folds
+
+        tested_count += 1
+        print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k-1} 🔹")
+
+        train_x, train_y = x_data[train_idx], y_data[train_idx]
+        val_x, val_y = x_data[val_idx], y_data[val_idx]
+
+        kf_model_path = os.path.join(model_dir, f"model_fold{fold}.pth")
+
+        train_loss, val_loss, model, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
+                                        decay=decay, epochs=epochs, lr=lr_best, device=device, 
+                                        save_model=save_kf_model, model_path=kf_model_path, 
+                                        activation=activation, zero_centering=zero_centering, lgk=lgk, initial_model=copy.deepcopy(best_model), mean_std=mean_std)
+
+        fold_results.append((train_loss, val_loss, model))
     
+    # best model
+    best_model = min(fold_results, key=lambda x: x[0] + x[1])[2]
+
+    if fold_results:
+        avg_val_loss = np.mean([val_loss for _, val_loss, _ in fold_results])
+        avg_train_loss = np.mean([train_loss for train_loss, _, _ in fold_results])
+        print(f"✅ Average Loss Across Selected Folds: training: {avg_train_loss:.6e}, validation: {avg_val_loss:.6e}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6e}\n")
+        return avg_train_loss, avg_val_loss, best_model, lr_best
+    else:
+        print("⚠️ No folds were selected for testing. Returning None.")
+        return None, None, None, None
+    
+
 def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
                               num_trials=3, decay=0, epochs=1000, lr=0.1, device='cuda', 
                               activation=nn.SiLU(), zero_centering=False, save_model=False,

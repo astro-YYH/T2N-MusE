@@ -31,7 +31,7 @@ def objective(params):
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
-    train_loss, val_loss, _, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, trials_k1=args.trials_k1)
+    train_loss, val_loss, _, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
 
     # optimize the average of training loss and validation loss
 
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--pca_allz', action='store_true', help='PCA on all redshifts')  # PCA on all redshifts
 
-    parser.add_argument('--trials_k1', type=int, default=None, help='Number of trials for the first round of K-Fold training')
+    # parser.add_argument('--trials_k1', type=int, default=None, help='Number of trials for the first round of K-Fold training')
 
     args = parser.parse_args()
 
@@ -378,7 +378,7 @@ if __name__ == "__main__":
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
     # Evaluate the model with the best hyperparameters
-    _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, trials_k1=args.trials_k1)
+    _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
