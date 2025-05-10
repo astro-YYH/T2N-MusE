@@ -256,7 +256,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         }, model_path)
         print(f"Model saved to {model_path}\n")
 
-    return train_loss, val_loss, model, optimizer.param_groups[0]['lr']
+    return train_loss, val_loss, model, optimizer.param_groups[0]['lr'], loss.item()  # Return the loss with L2 regularization
 
 # Training function with K-Fold CV
 # def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, lgk=None):
@@ -387,7 +387,7 @@ def train_model_kfold_2r_old(num_layers, hidden_size, x_data, y_data, decay=0, k
 
         kf_model_path = os.path.join(model_dir, f"model_fold{fold}.pth")
 
-        train_loss, val_loss, model, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
+        train_loss, val_loss, model, _, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
                                         decay=decay, epochs=epochs, lr=lr_best, device=device, 
                                         save_model=save_kf_model, model_path=kf_model_path, 
                                         activation=activation, zero_centering=zero_centering, lgk=lgk, initial_model=copy.deepcopy(best_model), mean_std=mean_std)
@@ -467,7 +467,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
 
     print(f"🔹 Starting Round 1 of Training: searching for a good minimum 🔹")
     # no real validation loss here, just training
-    train_loss, val_loss, model, lr_fine = train_fold_multiple_times(num_layers, hidden_size, x_data_1, y_data_1, x_data_1, y_data_1,
+    train_loss, val_loss, model, lr_fine = train_fold_multiple_times(num_layers, hidden_size, x_data_1, y_data_1,
                  num_trials=num_trials, decay=decay, epochs=epochs, lr=lr, device=device, 
                  activation=activation, zero_centering=zero_centering)
         
@@ -491,7 +491,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
 
         kf_model_path = os.path.join(model_dir, f"model_fold{fold}.pth")
 
-        train_loss, val_loss, model, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
+        train_loss, val_loss, model, _, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
                                         decay=decay, epochs=epochs, lr=lr_best, device=device, 
                                         save_model=save_kf_model, model_path=kf_model_path, 
                                         activation=activation, zero_centering=zero_centering, lgk=lgk, initial_model=copy.deepcopy(best_model), mean_std=mean_std)
@@ -511,7 +511,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
         return None, None, None, None
     
 
-def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
+def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
                               num_trials=3, decay=0, epochs=1000, lr=0.1, device='cuda', 
                               activation=nn.SiLU(), zero_centering=False, save_model=False,
                               model_path='model.pth', lgk=None, mean_std=None):
@@ -524,6 +524,12 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
     Returns:
         best_model - The best-performing model for this fold.
     """
+    val_provided = True  # Check if validation data is provided
+    if val_x is None or val_y is None:
+        val_provided = False
+        print(f"⚠️ No validation data provided. Regularized loss will be used to select the best model.")
+        val_x, val_y = train_x, train_y
+
     best_model = None
     best_summed_loss = float("inf")
 
@@ -532,13 +538,16 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
         
         print(f"🔄 Training fold with seed {seed} (Trial {trial+1}/{num_trials})...")
         
-        train_loss, val_loss, model, lr_fine = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
+        train_loss, val_loss, model, lr_fine, reg_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
                                                   decay=decay, epochs=epochs, lr=lr, device=device, 
                                                   activation=activation, zero_centering=zero_centering, random_seed=seed)
 
-        if val_loss + train_loss < best_summed_loss:
+        # use regularized loss when no separate validation set is provided
+        summed_loss = val_loss + train_loss if val_provided else reg_loss
+            
+        if summed_loss < best_summed_loss:
             best_model = model
-            best_summed_loss = val_loss + train_loss
+            best_summed_loss = summed_loss
             best_train_loss = train_loss
             best_val_loss = val_loss
             lr_best = lr_fine
@@ -546,14 +555,14 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x, 
             # print(f"✅ Best model selected for this fold (Validation Loss + Training Loss: {best_summed_loss:.6e})")
     #retrain and save the best model
 
-    print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss): {best_summed_loss/2:.6e}")
+    print(f"✅ Best model selected mean(Validation Loss,Training Loss): {(best_train_loss, best_val_loss)/2:.6e}")
     print(f"🔄 Retraining the best model with seed {seed_best}...")
     if save_model and best_model is not None:
-        best_train_loss, best_val_loss, best_model, lr_best = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y,
+        best_train_loss, best_val_loss, best_model, lr_best, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y,
                  decay=decay, epochs=epochs, lr=lr_best, device=device, 
                  activation=activation, zero_centering=zero_centering, random_seed=seed_best, save_model=save_model, model_path=model_path, lgk=lgk, initial_model=best_model, mean_std=mean_std)
 
-    print(f"✅ Best model selected for this fold mean(Validation Loss,Training Loss): {(best_train_loss + best_val_loss)/2:.6e}")
+    print(f"✅ Best model selected mean(Validation Loss,Training Loss): {(best_train_loss + best_val_loss)/2:.6e}")
     return best_train_loss, best_val_loss, best_model, lr_best
 
 def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
@@ -659,7 +668,7 @@ def train_model_kfold_with_initial(num_layers, hidden_size, x_data, y_data, deca
 
         kf_model_path = os.path.join(model_dir, f"model_fold{fold}.pth")
 
-        train_loss, val_loss, model, lr_fine = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
+        train_loss, val_loss, model, lr_fine, _ = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, 
                                         decay=decay, epochs=epochs, lr=lr, device=device, 
                                         save_model=save_kf_model, model_path=kf_model_path, 
                                         activation=activation, zero_centering=zero_centering, lgk=lgk, initial_model=initial_model)
