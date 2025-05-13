@@ -10,6 +10,17 @@ from mfbox import act_dict
 import sys
 from sklearn.decomposition import PCA
 
+def print_elapsed(start_time):
+    elapsed_time = time.time() - start_time
+
+    total_seconds = int(elapsed_time)
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+
+    formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}"
+    print(f"⏱ Elapsed time: {formatted_time}")
+
 # Automatically disable tqdm progress bar if not running interactively
 show_progress = sys.stdout.isatty()  # True if running interactively, False if output is redirected
 # tqdm.tqdm.disable = not show_progress  # Disable if not interactive
@@ -336,6 +347,9 @@ if __name__ == "__main__":
         print("\n🎯 Best Hyperparameters Found in the initial search:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
+        # print elapsed time
+        print_elapsed(start_time)
+
         # Define a refined search space
         hidden_size_choices_fine = list(range(max(16, best_hidden_size - 24), (best_hidden_size + 24), 2))  
 
@@ -389,12 +403,4 @@ if __name__ == "__main__":
     train_loss, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
-    elapsed_time = time.time() - start_time
-
-    total_seconds = int(elapsed_time)
-    hours = total_seconds // 3600
-    minutes = (total_seconds % 3600) // 60
-    seconds = total_seconds % 60
-
-    formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}"
-    print(f"⏱ Elapsed time: {formatted_time}")
+    print_elapsed(start_time)
