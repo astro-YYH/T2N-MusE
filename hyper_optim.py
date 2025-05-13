@@ -19,7 +19,7 @@ def print_elapsed(start_time):
     seconds = total_seconds % 60
 
     formatted_time = f"{hours:02}:{minutes:02}:{seconds:02}"
-    print(f"⏱ Elapsed time: {formatted_time}")
+    print(f"⏱ Elapsed time: {formatted_time}\n")
 
 # Automatically disable tqdm progress bar if not running interactively
 show_progress = sys.stdout.isatty()  # True if running interactively, False if output is redirected
@@ -391,12 +391,15 @@ if __name__ == "__main__":
         print("\n🎯 Best Hyperparameters Found:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
 
+    print_elapsed(start_time)
+
     # Evaluate the model with the best hyperparameters
     _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
     # train the model on the full dataset
+    print_elapsed(start_time)
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
