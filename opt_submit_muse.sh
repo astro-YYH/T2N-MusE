@@ -18,9 +18,9 @@ date
 
 # L2:
 # HO-2 (Mid)
-python hyper_optim.py --trials=80 --trials_train=15 --data_x=./data/muse_L2/train_input.txt --data_y=./data/muse_L2/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/muse-HO-2_L2 --save_best --lr=0.01 --kfolds=564 --lgk=./data/muse_L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --k2r --min_pca=.99999 &> muse-HO-2_L2.log &
+python hyper_optim.py --trials=80 --trials_train=1 --data_x=./data/muse_L2/train_input.txt --data_y=./data/muse_L2/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/muse-HO-2_L2 --save_best --lr=0.01 --kfolds=564 --lgk=./data/muse_L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --min_pca=.99999 &> muse-HO-2_L2.log &
 # HO-3
-python hyper_optim.py --trials=120 --trials_fine=0 --trials_train=15 --data_x=./data/muse_L2/train_input.txt --data_y=./data/muse_L2/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/muse-HO-3_L2 --save_best --lr=0.01 --kfolds=564 --lgk=./data/muse_L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --k2r --min_pca=.99999 &> muse-HO-3_L2.log &
+python hyper_optim.py --trials=120 --trials_fine=0 --trials_train=1 --data_x=./data/muse_L2/train_input.txt --data_y=./data/muse_L2/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/muse-HO-3_L2 --save_best --lr=0.01 --kfolds=564 --lgk=./data/muse_L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --min_pca=.99999 &> muse-HO-3_L2.log &
 # combined
 # python hyper_optim.py --trials=60 --data_x=./data/L2/train_input.npy --data_y=./data/L2/train_output.npy --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/L2 --save_best --lr=0.01 --kfolds=1128 --lgk=./data/L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524, 708, 709, 710, 732, 733, 734, 759, 760, 761, 768, 769, 770, 900, 901, 902" --k2r --min_pca=.99999 &> L2.log &
 # only stage-2 search
