@@ -366,25 +366,28 @@ if __name__ == "__main__":
         }
 
         # Run the second optimization round
-        
-        best_hyperparams_fine = fmin(
-            fn=objective,
-            space=space_fine,
-            algo=tpe.suggest,
-            max_evals=n_trials_fine,  # Fewer trials for fine-tuning
-            trials=trials_fine,
-            show_progressbar=show_progress
-        )
-        best_loss_fine = min([trial['result']['loss'] for trial in trials_fine.trials[:-1]]) if len(trials_fine.trials) > 1 else float('inf')
+        if n_trials_fine > 0:
+            print("\n🔍 Fine-tuning the hyperparameters...")
+            best_hyperparams_fine = fmin(
+                fn=objective,
+                space=space_fine,
+                algo=tpe.suggest,
+                max_evals=n_trials_fine,  # Fewer trials for fine-tuning
+                trials=trials_fine,
+                show_progressbar=show_progress
+            )
+            best_loss_fine = min([trial['result']['loss'] for trial in trials_fine.trials[:-1]]) if len(trials_fine.trials) > 1 else float('inf')
 
-        if best_loss_fine < best_loss:
-            # ✅ Directly assign the fine-tuned best hyperparameters
-            best_hidden_size = hidden_size_choices_fine[best_hyperparams_fine['hidden_size']]
-            best_num_layers = num_layers_choices_fine[best_hyperparams_fine['num_layers']]
-            best_decay = best_hyperparams_fine['decay']
+            if best_loss_fine < best_loss:
+                # ✅ Directly assign the fine-tuned best hyperparameters
+                best_hidden_size = hidden_size_choices_fine[best_hyperparams_fine['hidden_size']]
+                best_num_layers = num_layers_choices_fine[best_hyperparams_fine['num_layers']]
+                best_decay = best_hyperparams_fine['decay']
+            else:
+                # ✅ Keep the original best hyperparameters
+                print("Fine-tuning did not yield better results. Keeping the original best hyperparameters.")
         else:
-            # ✅ Keep the original best hyperparameters
-            print("Fine-tuning did not yield better results. Keeping the original best hyperparameters.")
+            print("Skipping fine-tuning: n_trials_fine == 0")
 
         best_params = {'hidden_size': best_hidden_size, 'decay': best_decay, 'num_layers': best_num_layers}
 
