@@ -119,7 +119,7 @@ def find_max_batch_size(model, dataset, device, start=32, step=2):
     print(f"🎯 Optimal Batch Size Found: {best_batch}")
     return best_batch
 
-def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True, initial_model=None, random_seed=42, mean_std=None):
+def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True, initial_model=None, random_seed=42, mean_std=None, train_loss_lower=0):
     set_seed(random_seed) # Set seed for reproducibility
 
     center_x = None
@@ -229,7 +229,8 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         scheduler.step(val_loss+loss.item())
 
         # Check early stopping condition
-        if early_stopping.step(val_loss+loss.item()):   # sum of train and val loss (should be more stable)
+        if early_stopping.step(val_loss+loss.item()) or train_loss < train_loss_lower:
+           # sum of train and val loss (should be more stable; if the training loss is lower than the provided lower bound, stop training to avoid overfitting
             print(f"Stopping early at epoch {epoch}")
             print(f"Epoch {epoch}, Train Loss: {train_loss:.6e}, Val Loss: {val_loss:.6e}, Train loss with L2: {loss.item():.6e}, LR: {optimizer.param_groups[0]['lr']:.6e}")
             break
@@ -257,32 +258,6 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
         print(f"Model saved to {model_path}\n")
 
     return train_loss, val_loss, model, optimizer.param_groups[0]['lr'], loss.item()  # Return the loss with L2 regularization
-
-# Training function with K-Fold CV
-# def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, lgk=None):
-
-#     epochs = epochs if epochs is not None else epochs_neuron * hidden_size * num_layers
-#     kf = KFold(n_splits=k, shuffle=True, random_state=42) if shuffle else KFold(n_splits=k)
-#     fold_results = []
-
-#     for fold, (train_idx, val_idx) in enumerate(kf.split(x_data)):
-#         print(f"🔹 Fold {fold + 1}/{k} 🔹")
-
-#         train_x, train_y = x_data[train_idx], y_data[train_idx]
-#         val_x, val_y = x_data[val_idx], y_data[val_idx]
-
-#         kf_model_path = os.path.join(model_dir,f"model_fold{fold}.pth")
-
-#         train_loss, val_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y, decay=decay, epochs=epochs, lr=lr, device=device, save_model=save_kf_model, model_path=kf_model_path, activation=activation, zero_centering=zero_centering, lgk=lgk)
-
-#         fold_results.append((train_loss, val_loss))
-
-#     avg_val_loss = np.mean([val_loss for _, val_loss in fold_results])
-#     avg_train_loss = np.mean([train_loss for train_loss, _ in fold_results])
-
-#     print(f"✅ Average Loss Across {k} Folds: training: {avg_train_loss:.6e}, validation: {avg_val_loss:.6e}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6e}\n")
-
-#     return avg_train_loss, avg_val_loss
 
 def train_model_kfold_2r_old(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 

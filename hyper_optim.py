@@ -397,7 +397,7 @@ if __name__ == "__main__":
     print_elapsed(start_time)
 
     # Evaluate the model with the best hyperparameters
-    _, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
+    train_loss, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -406,7 +406,7 @@ if __name__ == "__main__":
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    train_loss, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std)
+    _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std, train_loss_lower=train_loss/5)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     print_elapsed(start_time)
