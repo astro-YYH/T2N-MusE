@@ -480,6 +480,10 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     # best model
     best_model = min(fold_results, key=lambda x: x[0] + x[1])[2]
 
+    # print the best model fold
+    idx_best = np.argmin([train_loss + val_loss for train_loss, val_loss, _, _ in fold_results])
+    print(f"\n✅ Best Model Selected: model fold {test_folds[idx_best]}")
+
     if fold_results:
         avg_val_loss = np.mean([val_loss for _, val_loss, _ in fold_results])
         avg_train_loss = np.mean([train_loss for train_loss, _, _ in fold_results])
