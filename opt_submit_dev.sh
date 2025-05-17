@@ -3,7 +3,7 @@
 #SBATCH --time=0-2:00:00
 #SBATCH --nodes=1 
 #SBATCH --ntasks-per-node=1
-#SBATCH --partition=gh
+#SBATCH --partition=gh-dev
 #SBATCH -A AST21005
 #SBATCH --output=%x-%j.out
 
