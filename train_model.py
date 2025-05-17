@@ -483,13 +483,15 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     # print the best model fold
     # idx_best = np.argmin([train_loss + val_loss for train_loss, val_loss, _, _ in fold_results])
     # should select the best model fold based on regularized loss instead of train_loss + val_loss, because individual val loss is highly dependent on the tested point, reg loss is more stable
-    idx_best = np.argmin([reg_loss for _, _, _, reg_loss in fold_results])
+    # choose the model with the regularized loss that is closest to the mean of the regularized loss
+    del_loss = np.abs(np.array([reg_loss for _, _, _, reg_loss in fold_results]) - np.mean([reg_loss for _, _, _, reg_loss in fold_results]))
+    idx_best = np.argmin(del_loss)
     best_model = copy.deepcopy(fold_results[idx_best][2])
     print(f"\n✅ Best Model Selected: model fold {test_folds[idx_best]} (lowest regularized loss)")
 
     if fold_results:
-        avg_val_loss = np.mean([val_loss for _, val_loss, _ in fold_results])
-        avg_train_loss = np.mean([train_loss for train_loss, _, _ in fold_results])
+        avg_val_loss = np.mean([val_loss for _, val_loss, _, _ in fold_results])
+        avg_train_loss = np.mean([train_loss for train_loss, _, _, _ in fold_results])
         print(f"✅ Average Loss Across Selected Folds: training: {avg_train_loss:.6e}, validation: {avg_val_loss:.6e}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6e}\n")
         return avg_train_loss, avg_val_loss, best_model, lr_best
     else:
@@ -608,7 +610,9 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
 
         fold_results.append((train_loss, val_loss, model, lr_fine, reg_loss))
     # find the best model fold index based on regularized loss
-    idx_best = np.argmin([reg_loss for _, _, _, _, reg_loss in fold_results])
+    # idx_best = np.argmin([reg_loss for _, _, _, _, reg_loss in fold_results])
+    del_loss = np.abs(np.array([reg_loss for _, _, _, reg_loss in fold_results]) - np.mean([reg_loss for _, _, _, reg_loss in fold_results]))
+    idx_best = np.argmin(del_loss)
     # best_model = fold_results[idx_best][2]
     best_model = copy.deepcopy(fold_results[idx_best][2])
     lr_best = fold_results[idx_best][3]
