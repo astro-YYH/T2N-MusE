@@ -611,7 +611,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
         fold_results.append((train_loss, val_loss, model, lr_fine, reg_loss))
     # find the best model fold index based on regularized loss
     # idx_best = np.argmin([reg_loss for _, _, _, _, reg_loss in fold_results])
-    del_loss = np.abs(np.array([reg_loss for _, _, _, reg_loss in fold_results]) - np.mean([reg_loss for _, _, _, reg_loss in fold_results]))
+    del_loss = np.abs(np.array([reg_loss for _, _, _, _, reg_loss in fold_results]) - np.mean([reg_loss for _, _, _, _, reg_loss in fold_results]))
     idx_best = np.argmin(del_loss)
     # best_model = fold_results[idx_best][2]
     best_model = copy.deepcopy(fold_results[idx_best][2])

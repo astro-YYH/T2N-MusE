@@ -406,7 +406,7 @@ if __name__ == "__main__":
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std, train_loss_lower=train_loss/2)
+    _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std, train_loss_lower=train_loss*.8)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     print_elapsed(start_time)
