@@ -327,6 +327,8 @@ if __name__ == "__main__":
             # only train the model with the provided hyperparameters
             train_loss, val_loss, _, _ = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
 
+            best_loss = float('inf')
+
         else:
 
             # Run Bayesian optimization
