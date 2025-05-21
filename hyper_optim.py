@@ -146,6 +146,16 @@ if __name__ == "__main__":
 
     parser.add_argument('--pca_allz', action='store_true', help='PCA on all redshifts')  # PCA on all redshifts
 
+    # set bounds for search
+    parser.add_argument('--min_layers', type=int, default=1, help='Lower bound for the number of hidden layers')
+    parser.add_argument('--max_layers', type=int, default=7, help='Upper bound for the number of hidden layers')
+
+    parser.add_argument('--min_hidden_size', type=int, default=16, help='Lower bound for the number of neurons per hidden layer')
+    parser.add_argument('--max_hidden_size', type=int, default=512, help='Upper bound for the number of neurons per hidden layer')
+
+    parser.add_argument('--min_lambda', type=float, default=1e-9, help='Lower bound for L2 regularization strength')
+    parser.add_argument('--max_lambda', type=float, default=5e-6, help='Upper bound for L2 regularization strength')
+
     # parser.add_argument('--trials_k1', type=int, default=None, help='Number of trials for the first round of K-Fold training')
 
     args = parser.parse_args()
@@ -293,11 +303,11 @@ if __name__ == "__main__":
     else:
         # if hyperparameters are provided, use them to train the model
         # Define the choices explicitly
-        hidden_size_choices = list(range(16, 513, 16))  # Generates [16, 32, 48, ..., 512]
-        num_layers_choices = [1, 2, 3, 4, 5, 6, 7]
+        hidden_size_choices = list(range(args.min_hidden_size, args.max_hidden_size + 1, 16))
+        num_layers_choices = list(range(args.min_layers, args.max_layers + 1))
         # activation_choices = [nn.ReLU, nn.Tanh, nn.Sigmoid]
-        decay_lower, decay_upper = 1e-9, 5e-6
-        
+        decay_lower, decay_upper = args.min_lambda, args.max_lambda
+
         # Define the hyperparameter search space
         space = {
             'num_layers': hp.choice('num_layers', num_layers_choices),  # Number of hidden layers

@@ -31,8 +31,6 @@ date
 # python hyper_optim.py --trials=80 --trials_train=15 --data_x=./data/muse_pre_N_L2/train_input.txt --data_y=./data/muse_pre_N_L2/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2 --save_best --lr=0.01 --kfolds=297 --lgk=./data/muse_pre_N_L2/kf.txt --zero_centering --test_folds="6, 7, 8, 54, 55, 56, 60, 61, 62, 72, 73, 74, 81, 82, 83, 168, 169, 170, 189, 190, 191, 192, 193, 194, 282, 283, 284" --k2r --min_pca=.99999 &> muse_pre_N_L2.log &
 # pre N z00
 python hyper_optim.py --i_z=0 --trials=80 --trials_train=15 --data_x=./data/muse_pre_N_L2/train_input.txt --data_y=./data/muse_pre_N_L2/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2_z00 --save_best --lr=0.01 --kfolds=297 --lgk=./data/muse_pre_N_L2/kf.txt --zero_centering --test_folds="6, 7, 8, 54, 55, 56, 60, 61, 62, 72, 73, 74, 81, 82, 83, 168, 169, 170, 189, 190, 191, 192, 193, 194, 282, 283, 284" --k2r --min_pca=.99999 &> muse_pre_N_L2_z00.log &
-# Mid one
-# python hyper_optim.py --train_one --hidden_size=112 --decay=1.001215e-09 --num_layers=2 --trials_train=1 --data_x=./data/muse_L2/train_input.txt --data_y=./data/muse_L2/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/muse-Mid_L2 --save_best --lr=0.01 --kfolds=564 --lgk=./data/muse_L2/kf.txt --zero_centering --test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" --min_pca=.99999 &> muse-Mid_L2_one.log &
 
 # L2Hr:
 # PCA-1
