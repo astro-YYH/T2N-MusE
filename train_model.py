@@ -544,13 +544,14 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
     #retrain and save the best model
 
     print(f"✅ Best model selected mean(Validation Loss,Training Loss): {(best_train_loss+best_val_loss)/2:.6e}")
-    print(f"🔄 Retraining the best model with seed {seed_best}...")
     if save_model and best_model is not None:
-        best_train_loss, best_val_loss, best_model, lr_best, reg_loss = train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y,
+        print(f"🔄 Retraining the best model with seed {seed_best}... (usually leads to a slightly better model)")
+        # retrain and save the best model
+        train_NN(num_layers, hidden_size, train_x, train_y, val_x, val_y,
                  decay=decay, epochs=epochs, lr=lr_best, device=device, 
                  activation=activation, zero_centering=zero_centering, random_seed=seed_best, save_model=save_model, model_path=model_path, lgk=lgk, initial_model=best_model, mean_std=mean_std)
 
-    return best_train_loss, best_val_loss, best_model, lr_best, reg_loss  # Return the loss with L2 regularization
+    return best_train_loss, best_val_loss, best_model, lr_best, best_reg_loss  # Return the loss with L2 regularization
 
 def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epochs=None, 
                       epochs_neuron=10, lr=0.1, model_dir='./', save_kf_model=False, 
