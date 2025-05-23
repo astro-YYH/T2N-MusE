@@ -30,7 +30,7 @@ date
 # pre N
 # python hyper_optim.py --trials=80 --trials_train=15 --data_x=./data/muse_pre_N_L2/train_input.txt --data_y=./data/muse_pre_N_L2/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2 --save_best --lr=0.01 --kfolds=297 --lgk=./data/muse_pre_N_L2/kf.txt --zero_centering --test_folds="6, 7, 8, 54, 55, 56, 60, 61, 62, 72, 73, 74, 81, 82, 83, 168, 169, 170, 189, 190, 191, 192, 193, 194, 282, 283, 284" --k2r --min_pca=.99999 &> muse_pre_N_L2.log &
 # pre N z00
-python hyper_optim.py --i_z=0 --trials=80 --trials_train=15 --data_x=./data/muse_pre_N_L2/train_input.txt --data_y=./data/muse_pre_N_L2/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2_z00 --save_best --lr=0.01 --kfolds=297 --lgk=./data/muse_pre_N_L2/kf.txt --zero_centering --test_folds="6, 7, 8, 54, 55, 56, 60, 61, 62, 72, 73, 74, 81, 82, 83, 168, 169, 170, 189, 190, 191, 192, 193, 194, 282, 283, 284" --k2r --min_pca=.99999 &> muse_pre_N_L2_z00.log &
+# python hyper_optim.py --i_z=0 --trials=80 --trials_train=15 --data_x=./data/muse_pre_N_L2/train_input.txt --data_y=./data/muse_pre_N_L2/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2_z00 --save_best --lr=0.01 --kfolds=297 --lgk=./data/muse_pre_N_L2/kf.txt --zero_centering --test_folds="6, 7, 8, 54, 55, 56, 60, 61, 62, 72, 73, 74, 81, 82, 83, 168, 169, 170, 189, 190, 191, 192, 193, 194, 282, 283, 284" --k2r --min_pca=.99999 &> muse_pre_N_L2_z00.log &
 
 # L2Hr:
 # PCA-1
@@ -46,7 +46,7 @@ python hyper_optim.py --i_z=0 --trials=80 --trials_train=15 --data_x=./data/muse
 # pre N
 # python hyper_optim.py --trials=80 --data_x=./data/muse_pre_N_L2Hr/train_input.txt --data_y=./data/muse_pre_N_L2Hr/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2Hr --save_best --lr=0.01 --kfolds=27 --lgk=./data/muse_pre_N_L2Hr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> muse_pre_N_L2Hr.log &
 # pre N z00
-python hyper_optim.py --i_z=0 --trials=80 --data_x=./data/muse_pre_N_L2Hr/train_input.txt --data_y=./data/muse_pre_N_L2Hr/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2Hr_z00 --save_best --lr=0.01 --kfolds=27 --lgk=./data/muse_pre_N_L2Hr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> muse_pre_N_L2Hr_z00.log &
+# python hyper_optim.py --i_z=0 --trials=80 --data_x=./data/muse_pre_N_L2Hr/train_input.txt --data_y=./data/muse_pre_N_L2Hr/train_output.txt --bound_x=./data/input_limits-N.txt --save_kfold --model_dir=models/muse_pre_N_L2Hr_z00 --save_best --lr=0.01 --kfolds=27 --lgk=./data/muse_pre_N_L2Hr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> muse_pre_N_L2Hr_z00.log &
 # NNL-2 one
 # python hyper_optim.py --train_one --hidden_size=336 --decay=6.150068e-09 --num_layers=5 --data_x=./data/muse_L2Hr/train_input.txt --data_y=./data/muse_L2Hr/train_output.txt --bound_x=./data/input_limits-W.txt --save_kfold --model_dir=models/muse-NNL-2_L2Hr --save_best --lr=0.01 --kfolds=21 --lgk=./data/muse_L2Hr/kf.txt --zero_centering --trials_train=5 --min_pca=.99999 &> muse-NNL-2_L2Hr_one.log &
 
