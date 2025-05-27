@@ -56,7 +56,11 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         if self.pca_components is not None and self.pca_mean is not None:
             if self.n_pc_zs is None:
                 print('n_pc_zs is None, using the only PCA component')
-                y_pred = y_pred @ self.pca_components.to(self.device) + self.pca_mean.to(self.device)  # deprecated, will be removed in the future
+                # convert pca_components (list of tensors) to a single tensor
+                self.pca_components = torch.stack(self.pca_components, dim=0) if isinstance(self.pca_components, list) else self.pca_components
+                self.pca_mean = torch.stack(self.pca_mean, dim=0) if isinstance(self.pca_mean, list) else self.pca_mean
+                print('pca_components shape', self.pca_components.shape)
+                y_pred = y_pred @ self.pca_components + self.pca_mean.to(self.device)  # deprecated, will be removed in the future
             else:
                 # get the offset of the PCA coefficients from n_pc_zs
                 offset_pc_zs = np.insert(np.cumsum(self.n_pc_zs[:-1]).astype(int), 0, 0)
@@ -78,10 +82,21 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
 
                 # update y_pred
                 y_pred = y_pred_new
-        # print shape
-        print('y_pred shape', y_pred.shape)
 
         return y_pred
+    
+    # define a forward method that give the original output, without PCA transformation
+    def forward_orig(self, x):
+        """
+        Forward pass with input rescaling, returning the original output without PCA transformation.
+        """
+        if self.center_x is not None:
+            x = x - self.center_x  # Apply zero-centering
+        y_pred = super().forward(x)  # Pass through the base network
+        if self.center_y is not None:
+            y_pred = y_pred + self.center_y
+
+        return y_pred  # Return the original output without PCA transformation
 
     @classmethod
     def from_checkpoint(cls, path, device='cpu'):
@@ -214,6 +229,27 @@ class doublefid:
         y = self.model_LF(x_tensor).detach().cpu().numpy()
 
         return self.lgk, y
+    
+    # LF output in PCA space (PCs)
+    def predict_LF_pc(self, x):
+        # Convert to tensor
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(self.device)
+
+        # Make predictions
+        y_pca = self.model_LF.forward_orig(x_tensor)  # Use forward_orig to get the original output without PCA transformation
+
+        return self.lgk, y_pca
+    
+    def predict_pca_in(self, x):
+        # Convert to tensor
+        x_tensor = torch.tensor(x, dtype=torch.float32).to(self.device)
+        # Make predictions
+        _, y_LF_pca = self.predict_LF_pc(x_tensor)
+        x_xy_pca = torch.cat((x_tensor, y_LF_pca), dim=1)
+
+        y = self.model_HF(x_xy_pca)
+        return self.lgk, y.detach().cpu().numpy()
+
     
 class gokunet_df_ratio:
     def __init__(self, path_LF, path_LHr, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
@@ -375,6 +411,25 @@ class gokunet_df(doublefid):
         # return 10**y # Convert back to linear scale
         return 10**lgk, 10**y
 
+class gokunet_df_pca_in(doublefid):
+    def __init__(self, path_LF, path_LH, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
+        super().__init__(path_LF, path_LH, device=device)
+        self.bounds = np.loadtxt(bounds_path)
+    
+    def predict(self, x):
+        # Normalize the input data
+        x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        lgk, y = super().predict_pca_in(x)
+        # return 10**y # Convert back to linear scale
+        return 10**lgk, 10**y
+    
+    def predict_LF(self, x):
+        # Normalize the input data
+        x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        lgk, y = super().predict_LF(x)
+        # return 10**y # Convert back to linear scale
+        return 10**lgk, 10**y
+    
 # define gokunet-split based on gokunet_df
 class gokunet_split():
     def __init__(self, path_LA, path_HA, path_LB, path_HB, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
