@@ -156,6 +156,9 @@ if __name__ == "__main__":
     parser.add_argument('--min_lambda', type=float, default=1e-9, help='Lower bound for L2 regularization strength')
     parser.add_argument('--max_lambda', type=float, default=5e-6, help='Upper bound for L2 regularization strength')
 
+    parser.add_argument('--f_lambda_fine', type=float, default=3, help='Factor to fine-tune the L2 regularization strength around the best found value')
+    parser.add_argument('--r_num_layers_fine', type=int, default=24, help='Radius (half width) for the number of hidden layers in fine-tuning')
+
     # parser.add_argument('--trials_k1', type=int, default=None, help='Number of trials for the first round of K-Fold training')
 
     args = parser.parse_args()
@@ -363,13 +366,13 @@ if __name__ == "__main__":
         print_elapsed(start_time)
 
         # Define a refined search space
-        hidden_size_choices_fine = list(range(max(16, best_hidden_size - 24), (best_hidden_size + 24), 2))  
+        hidden_size_choices_fine = list(range(max(8, best_hidden_size - args.r_hidden_size_fine), (best_hidden_size + args.r_hidden_size_fine), 2))
 
         # num_layers_choices_fine = list(range(max(1, best_num_layers - 1), ((best_num_layers + 1) + 1)))
         # do not change the number of layers (changing the number of layers often leads to a worse model)
         num_layers_choices_fine = [best_num_layers]  # Keep the number of layers fixed
-        decay_lower_fine = best_decay / 3  # Search around the best decay
-        decay_upper_fine = best_decay * 3  
+        decay_lower_fine = best_decay / args.f_lambda_fine  # Search around the best decay
+        decay_upper_fine = best_decay * args.f_lambda_fine
 
         space_fine = {
             'num_layers': hp.choice('num_layers', num_layers_choices_fine),
