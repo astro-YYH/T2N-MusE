@@ -157,7 +157,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_lambda', type=float, default=5e-6, help='Upper bound for L2 regularization strength')
 
     parser.add_argument('--f_lambda_fine', type=float, default=3, help='Factor to fine-tune the L2 regularization strength around the best found value')
-    parser.add_argument('--r_num_layers_fine', type=int, default=24, help='Radius (half width) for the number of hidden layers in fine-tuning')
+    parser.add_argument('--r_hidden_size_fine', type=int, default=24, help='Radius (half range) to fine-tune the hidden size around the best found value')
 
     # parser.add_argument('--trials_k1', type=int, default=None, help='Number of trials for the first round of K-Fold training')
 
