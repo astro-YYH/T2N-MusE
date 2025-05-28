@@ -249,6 +249,16 @@ class doublefid:
 
         y = self.model_HF(x_xy_pca)
         return self.lgk, y.detach().cpu().numpy()
+    
+    def predict_pca_in_LH(self, x_xy_pca):
+        # Convert to tensor
+        x_xy_pca_tensor = torch.tensor(x_xy_pca, dtype=torch.float32).to(self.device)
+        print('x_xy_pca_tensor[0]', x_xy_pca_tensor[0])
+
+        # Make predictions
+        y = self.model_HF(x_xy_pca_tensor)
+
+        return self.lgk, y.detach().cpu().numpy()
 
     
 class gokunet_df_ratio:
@@ -427,6 +437,19 @@ class gokunet_df_pca_in(doublefid):
         # Normalize the input data
         x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
         lgk, y = super().predict_LF(x)
+        # return 10**y # Convert back to linear scale
+        return 10**lgk, 10**y
+    
+    # predict HF from LF
+    def predict_LH(self, x_xy_pca):
+        # Normalize the input data (only the first matched columns)
+        dimx_original = self.bounds.shape[0]
+        # copy the original x_xy_pca
+        x_xy_pca = np.copy(x_xy_pca)
+        x_xy_pca[:, :dimx_original] = (x_xy_pca[:, :dimx_original] - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        # print('x_xy_pca after normalization', x_xy_pca[0])
+
+        lgk, y = super().predict_pca_in_LH(x_xy_pca)
         # return 10**y # Convert back to linear scale
         return 10**lgk, 10**y
     
