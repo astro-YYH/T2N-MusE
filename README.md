@@ -1,8 +1,3 @@
-# GokuNet
+# T2N-MusE
 
-
-torch (pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
-)
-numpy
-scikit-learn
-hyperopt
+A user guide will be available soon.

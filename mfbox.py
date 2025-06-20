@@ -45,8 +45,8 @@ class RescaledNN(SimpleNN):  # not for training, only for prediction
         if self.center_y is not None:
             y_pred = y_pred + self.center_y  # Reverse zero-centering for output
 
-        # print shape
-        print('y_pred shape', y_pred.shape)
+        # # print shape
+        # print('y_pred shape', y_pred.shape)
         # Do inverse scaling + inverse PCA if we have the info (only at inference time)
         if self.std_mean is not None and self.std_scale is not None:  # do not use this for now, we do not standardize the output in training
             y_pred = y_pred * self.std_scale + self.std_mean
