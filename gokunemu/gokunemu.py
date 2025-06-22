@@ -4,6 +4,16 @@ import numpy as np
 from mfbox import gokunet_df_ratio
 from scipy.interpolate import interp1d
 
+def sigmoid_ramp(x, x_start, x_end, sharpness=10):
+    """Smooth transition from 0 to 1 over [x_start, x_end] using a sigmoid."""
+    x_mid = 0.5 * (x_start + x_end)
+    scale = sharpness / (x_end - x_start)
+    return 1 / (1 + np.exp(-scale * (x - x_mid)))
+
+def blend_predictions(Pk1_com, Pk2_com, weights):
+    return Pk1_com * (1 - weights) + Pk2_com * weights
+
+
 class MatterPowerEmulator:
     """
     Emulator class to predict the matter power spectrum P(k, z) using two neural networks.
@@ -35,32 +45,25 @@ class MatterPowerEmulator:
             device=device
         )
 
-        # Precomputed k-transition values for z_bins
-        self.k_trans_zs = np.array([
-            1.36449757, 1.44150977, 1.44150977, 1.29159973, 1.29159973,
-            1.29159973, 1.29159973, 1.29159973, 1.15727961, 1.29159973,
-            1.29159973, 1.29159973, 1.29159973, 0.92909262, 0.92909262,
-            0.7060491 , 1.29159973, 1.29159973, 1.29159973, 1.29159973,
-            1.22259643, 1.22259643, 1.22259643, 1.15727961, 1.15727961,
-            1.09545232, 1.09545232, 0.87945615, 0.98153058, 1.03692813,
-            1.15727961, 1.03692813, 1.09545232, 1.15727961
-        ])
-
         # Sample dummy input to extract k1 and k2 structure
         dummy_params = np.zeros((1, 10))
-        self.k1, _ = self.emu1.predict(dummy_params)
-        self.k2, _ = self.emu2.predict(dummy_params)
+        k1, _ = self.emu1.predict(dummy_params)
+        k2, _ = self.emu2.predict(dummy_params)
 
-        # Precompute kAB and stitching indices per z-bin
-        self.kB_extra = self.k2[self.k2 > self.k1[-1]]
-        self.kAB = np.concatenate((self.k1, self.kB_extra))
-        self.stitch_slices = []
-        for k_trans in self.k_trans_zs:
-            idxA = self.k1 <= k_trans
-            idxB = self.k2 > k_trans
-            len_A = np.sum(idxA)
-            len_B = np.sum(idxB)
-            self.stitch_slices.append((len_A, len_B))
+        # i_1_cut and i_2_cut
+        self.i_1_cut = np.where(k1 <= k2.min())[0][-1]
+        self.i_2_cut = np.where(k2 > k1.max())[0][0]
+        k_com = k1[self.i_1_cut:]
+
+        self.k = np.concatenate((k1, k2[self.i_2_cut:]))
+
+        self.weights = sigmoid_ramp(k_com, k_com[0], k_com[-1], sharpness=4)
+
+    def _expand_params(self, cosmo_params, Om, Ob, hubble, As, ns, w0, wa, mnu, Neff, alphas):
+        if cosmo_params is None:
+            return np.array([[Om, Ob, hubble, As, ns, w0, wa, mnu, Neff, alphas]])
+        return np.atleast_2d(cosmo_params)
+
 
     def predict(
         self,
@@ -85,32 +88,28 @@ class MatterPowerEmulator:
         - kAB: Combined k-array
         - Pk_obj: Array of P(k, z) predictions, shape (n_samples, len(redshifts), len(kAB))
         """
-        if cosmo_params is None:
-            cosmo_params = np.array([[Om, Ob, hubble, As, ns, w0, wa, mnu, Neff, alphas]])
-        else:
-            cosmo_params = np.atleast_2d(cosmo_params)
+        # Expand cosmological parameters to 2D array if needed
+        cosmo_params = self._expand_params(cosmo_params, Om, Ob, hubble, As, ns, w0, wa, mnu, Neff, alphas)
 
         n_samples = cosmo_params.shape[0]
-        n_z_bins = len(self.z_bins)
 
         # Predict full redshift grid with both emulators
         _, Pk1 = self.emu1.predict(cosmo_params)
         _, Pk2 = self.emu2.predict(cosmo_params)
 
-        # Allocate combined spectrum
-        Pk = np.zeros((n_samples, n_z_bins, len(self.kAB)))
-
-        # Efficient stitching using precomputed slices
-        for i, (len_A, len_B) in enumerate(self.stitch_slices):
-            Pk[:, i, :len_A] = Pk1[:, i, :len_A]
-            Pk[:, i, len_A:] = Pk2[:, i, -len_B:]
+        # blend two predictions using sigmoidal transition
+        Pk1_com = Pk1[:, :, self.i_1_cut:]
+        Pk2_com = Pk2[:, :, :self.i_2_cut]
+        Pk_blend = blend_predictions(Pk1_com, Pk2_com, self.weights)
+        Pk = np.concatenate((Pk1[:, :, :self.i_1_cut], Pk_blend, Pk2[:, :, self.i_2_cut:]), axis=2)
 
         # Interpolate log10 P(k) in redshift space to target redshifts
         log_Pk = np.log10(Pk)
-        log_Pk_interp = np.zeros((n_samples, len(redshifts), len(self.kAB)))
-        for i in range(n_samples):
-            f = interp1d(self.z_bins, log_Pk[i], kind='linear', axis=0, bounds_error=False, fill_value='extrapolate')
-            log_Pk_interp[i] = f(redshifts)
+        log_Pk_interp = np.array([
+            interp1d(self.z_bins, log_Pk[i], kind='linear', axis=0, bounds_error=False, fill_value='extrapolate')(redshifts)
+            for i in range(n_samples)
+        ])
 
-        return self.kAB, 10 ** log_Pk_interp
-    
+        return self.k, 10 ** log_Pk_interp
+
+
