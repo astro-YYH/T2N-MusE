@@ -147,6 +147,11 @@ Set the minimum explained variance ratio:
 ```bash
 --min_pca=0.99999
 ```
+Local (per-z) PCA is used by default. If global PCA is desired:
+```
+--pca_allz
+```
+
 
 ---
 
@@ -162,7 +167,7 @@ Specify where models will be saved:
 
 ### Miscellaneous Options
 
-Attach metadata (e.g., wavenumbers):
+Attach metadata (e.g., wavenumbers, also used to determine the number of redshift bins):
 
 ```bash
 --lgk=kf.txt
