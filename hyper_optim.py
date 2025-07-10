@@ -140,7 +140,7 @@ if __name__ == "__main__":
     # hidden size
     parser.add_argument('--hidden_size', type=int, default=None, help='Number of neurons per hidden layer')
     # decay
-    parser.add_argument('--decay', type=float, default=None, help='AdamW weight decay')
+    parser.add_argument('--decay', type=float, default=None, help='L2 regularization strength')
     parser.add_argument('--retrain', action='store_true', help='Retrain the model')  # ignore provided hyperparameters
     parser.add_argument('--train_one', action='store_true', help='train the model with a given set of hyperparameters')
 
