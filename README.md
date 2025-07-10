@@ -1,40 +1,54 @@
 # T2N-MusE
 
-The Triple-2 neural Network Multifidelity cosmological Emulation framework (T2N-MusE) is designed to enable efficient training of neural networks for regression.
+**T2N-MusE** (Triple-2 Neural Network Multifidelity Cosmological Emulation Framework) enables efficient neural network training for regression tasks in cosmological modeling.
 
 ## Dependencies
 
-pytorch, numpy
+- `pytorch`
+- `numpy`
 
 ## Usage
 
-Prepare training data and then use `hyper_optim.py' to optimize hyperparameters: the number of hidden layers, the number of neurons per layer (i.e., layer width/hidden size), and the strength of regularization (lambda). Each trial includes k-fold training and validation for the set of hyperparameters evaluated at. Below introduction to the parameters that be specified for the program:
+First, prepare your training data, then run `hyper_optim.py` to perform hyperparameter optimization. The script tunes:
 
-### Data
+- Number of hidden layers  
+- Number of neurons per layer (hidden size)  
+- Regularization strength (lambda)
 
-Specify input and output data (can be txt or npy files):
+Each trial includes k-fold training and validation for the selected hyperparameter set.
 
-```
+---
+
+### Data Input
+
+Specify input and output datasets (`.txt` or `.npy`):
+
+```bash
 --data_x=/path/to/input
 --data_y=/path/to/output
 ```
 
-Lower and upper bounds of input (used for normalization):
-```
+Input normalization bounds (required):
+
+```bash
 --bound_x=input_limit.txt
 ```
 
-### Hyperparameter optimization
+---
 
-#### Stage 1
+### Hyperparameter Optimization
 
-Set the number of trials:
-```
+#### Stage 1: Coarse Search
+
+Set the number of optimization trials:
+
+```bash
 --trials=80
 ```
 
-Customize the search space if needed (or use the default space):
-```
+(Optional) Customize the search space:
+
+```bash
 --min_layers=1
 --max_layers=7
 --min_hidden_size=16
@@ -43,115 +57,193 @@ Customize the search space if needed (or use the default space):
 --max_lambda=5e-6
 ```
 
-#### Stage 2 (Optional)
+#### Stage 2: Fine-Tuning
 
-Fine-tuning around the best point found from stage 1.
-Number of trials:
-```
+Fine-tune around the best configuration found in Stage 1.
+
+Set number of fine-tuning trials (default: `trials/2`):
+
+```bash
 --trials_fine=40
 ```
 
-Optional:
+Run fine-tuning *only*, skipping Stage 1:
 
-If you want to do the fine-tuning without the first stage, add the flag:
-```
+```bash
 --fine_only
-```
-and remember to specify the point you want to search around:
-```
 --num_layers=[ ]
 --hidden_size=[ ]
 --decay=[ ]
 ```
-If you want to change the size of fine-tuning space:
-```
+
+Customize the fine-tuning region:
+
+```bash
 --f_lambda_fine=3
 --r_hidden_size_fine=24
 ```
 
-### k-fold parameters
+---
 
-#### Regular
-The number of folds:
-```
+### K-Fold Cross-Validation
+
+#### Standard K-Fold
+
+Set number of folds:
+
+```bash
 --kfolds=5
 ```
 
-#### 2-Phase strategy
+#### 2-Phase Strategy
 
-Besides the number of folds, a flag should be added, and the folds you want to test against need to be specified:
-```
+Enable 2-phase training and specify test folds:
+
+```bash
 --k2r
 --test_folds="6,7,9"
 ```
 
-# Other parameters for training
+---
 
-The number of random seeds you want to try for initializing each training run:
-```
+### Training Parameters
+
+Set number of training trials per hyperparameter configuration (used only in phase 1 for 2-phase):
+
+```bash
 --trials_train=15
 ```
 
 Initial learning rate:
-```
+
+```bash
 --lr=0.2
 ```
 
-(Optional, no need to change usually) The maximum number of epochs:
-```
+Maximum training epochs (optional):
+
+```bash
 --epochs=[ ]
 ```
-or set an upper limit that depends on the complexity of the NN via specifying the number of epochs per neuron:
-```
----epochs_neuron=1000
+
+Or specify epoch count per neuron:
+
+```bash
+--epochs_neuron=1000
 ```
 
 Activation function:
-```
+
+```bash
 --activation=SiLU
 ```
 
-### PCA
-Minimum explained variance ratio of the PCA:
-```
+---
+
+### PCA Compression
+
+Set the minimum explained variance ratio:
+
+```bash
 --min_pca=0.99999
 ```
 
-### Model directory
-Where to save the models:
-```
+---
+
+### Output Directory
+
+Specify where models will be saved:
+
+```bash
 --model_dir=models
 ```
 
-### Other parameters/flags
-Wavenumbers (not for training, just save in the model file for the convenience of use):
-```
+---
+
+### Miscellaneous Options
+
+Attach metadata (e.g., wavenumbers):
+
+```bash
 --lgk=kf.txt
 ```
 
-Save the k-fold models and the final model trained on the whole set:
-```
+Save models from each fold and the best full-set model:
+
+```bash
 --save_kfold
 --save_best
 ```
 
-Zero-center the output data (may not be needed if using PCA):
-```
+Zero-center output data (optional when PCA is used):
+
+```bash
 --zero_centering
 ```
 
-### Train with given hyperparameters
+---
 
-If you want to train the NN with certain hyperparameters (without Bayesian optimization), use 
-```
+### Direct Training (No Optimization)
+
+Train with user-defined hyperparameters:
+
+```bash
 --train_one
+--num_layers=[ ] --hidden_size=[ ] --decay=[ ]
 ```
-and remember to specify the hyperparameters (see Section Hyperparameter optimization Stage 2).
 
-If you want to retrain the NN (without changing hyperparameters), add
-```
+Retrain using saved configuration:
+
+```bash
 --retrain
+--model_dir=models/your_model
 ```
-and remember to specify the model directory.
 
-### Example commands
+---
+
+## Example Commands
+
+Train a low-fidelity model with 2-phase training:
+
+```bash
+python hyper_optim.py --k2r --trials=80 --trials_train=15 \
+--data_x=./data/muse_L2/train_input.txt \
+--data_y=./data/muse_L2/train_output.txt \
+--bound_x=./data/input_limits-W.txt \
+--save_kfold --save_best \
+--model_dir=models/muse-All-2_L2 \
+--lr=0.01 --kfolds=564 \
+--lgk=./data/muse_L2/kf.txt \
+--zero_centering \
+--test_folds="24, 25, 26, 54, 55, 56, 72, 73, 74, 207, 208, 209, 240, 241, 242, 300, 301, 302, 522, 523, 524" \
+--min_pca=0.99999 &> muse-All-2_L2.log &
+```
+
+Train a low- to high-fidelity correction model (NN_LH):
+
+```bash
+python hyper_optim.py --trials=80 \
+--data_x=./data/muse_L2Hr/train_input.txt \
+--data_y=./data/muse_L2Hr/train_output.txt \
+--bound_x=./data/input_limits-W.txt \
+--save_kfold --save_best \
+--model_dir=models/muse-HO-2_L2Hr \
+--lr=0.01 --kfolds=21 \
+--lgk=./data/muse_L2Hr/kf.txt \
+--zero_centering \
+--trials_train=5 \
+--min_pca=0.99999 &> muse-HO-2_L2Hr.log &
+```
+
+---
+
+## Additional Resources
+
+A Jupyter notebook for leave-one-out cross-validation (LOOCV) is available at:
+
+```
+loocv/muse-All-2.ipynb
+```
+
+This corresponds to the **Optimal** model discussed in the T2N-MusE paper.
+
