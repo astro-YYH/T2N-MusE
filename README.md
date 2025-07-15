@@ -2,12 +2,12 @@
 
 **T2N-MusE** (Triple-2 Neural Network Multifidelity Cosmological Emulation Framework) enables efficient neural network training for regression tasks in cosmological modeling.
 
-## Dependencies
+## 1 Dependencies
 
 - `pytorch`
 - `numpy`
 
-## Usage
+## 2 Usage
 
 First, prepare your training data, then run `hyper_optim.py` to perform hyperparameter optimization. The script tunes:
 
@@ -19,7 +19,7 @@ Each trial includes k-fold training and validation for the selected hyperparamet
 
 ---
 
-### Data Input
+### 2.1 Data Input
 
 Specify input and output datasets (`.txt` or `.npy`):
 
@@ -36,7 +36,7 @@ Input normalization bounds (required):
 
 ---
 
-### Hyperparameter Optimization
+### 2.2 Hyperparameter Optimization
 
 #### Stage 1: Coarse Search
 
@@ -85,7 +85,7 @@ Customize the fine-tuning region:
 
 ---
 
-### K-Fold Cross-Validation
+### 2.3 K-Fold Cross-Validation
 
 #### Standard K-Fold
 
@@ -106,7 +106,7 @@ Enable 2-phase training and specify test folds:
 
 ---
 
-### Training Parameters
+### 2.4 Training Parameters
 
 Set number of training trials per hyperparameter configuration (used only in phase 1 for 2-phase):
 
@@ -140,7 +140,7 @@ Activation function:
 
 ---
 
-### PCA Compression
+### 2.5 PCA Compression
 
 Set the minimum explained variance ratio:
 
@@ -155,7 +155,7 @@ Local (per-z) PCA is used by default. If global PCA is desired:
 
 ---
 
-### Output Directory
+### 2.6 Output Directory
 
 Specify where models will be saved:
 
@@ -165,7 +165,7 @@ Specify where models will be saved:
 
 ---
 
-### Miscellaneous Options
+### 2.7 Miscellaneous Options
 
 Attach metadata (e.g., wavenumbers, also used to determine the number of redshift bins):
 
@@ -188,7 +188,7 @@ Zero-center output data (optional when PCA is used):
 
 ---
 
-### Direct Training (No Optimization)
+### 2.8 Direct Training (No Optimization)
 
 Train with user-defined hyperparameters:
 
@@ -206,7 +206,7 @@ Retrain using saved configuration:
 
 ---
 
-## Example Commands
+## 3 Example Commands
 
 Train a low-fidelity model with 2-phase training:
 
@@ -242,7 +242,7 @@ python hyper_optim.py --trials=80 \
 
 ---
 
-## Additional Resources
+## 4 Additional Resources
 
 A Jupyter notebook for leave-one-out cross-validation (LOOCV) is available at:
 
@@ -251,4 +251,6 @@ loocv/muse-All-2.ipynb
 ```
 
 This corresponds to the **Optimal** model discussed in the T2N-MusE paper.
+
+The training data used in the T2N-MusE paper are under `data/`, named `muse_*`. Also, the data used to train GokuNEmu are `L*`.
 
