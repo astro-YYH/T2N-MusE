@@ -295,6 +295,24 @@ class gokunet_df_ratio:
         y_H = y_LF * ratio_LH
         return k, y_H
 
+class boost:
+    def __init__(self, path, device='cpu', bounds_path="./data/pre_N_xL-H_stitch_z0/input_limits.txt"):
+        self.device = torch.device(device)
+
+        # Load the saved model dictionary
+        self.single = singlefid(path=path, device=self.device)
+        self.bounds = np.loadtxt(bounds_path)
+
+    def predict(self, x):
+        # bounds
+        x = (x - self.bounds[:,0]) / (self.bounds[:,1] - self.bounds[:,0])
+        # lg to linear
+        lgk, y_LF = self.single.predict(x)
+        # reshape y_LF(n_sample, n_k * n_z) back to (n_sample, n_z, n_k) if needed: len(lgk) = n_k < y_LF.shape[1]
+        if len(lgk) < y_LF.shape[1]:
+            y_LF = y_LF.reshape(y_LF.shape[0], -1, len(lgk))
+        return 10**lgk, y_LF
+    
 # load L1, L2 and LF-HF models, and make predictions
 class mfbox:
     def __init__(self, path_L1, path_L2, path_LH, path_LHf=None, device='cpu', stitch="XL1L2"):
