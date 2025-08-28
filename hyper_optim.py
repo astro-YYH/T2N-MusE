@@ -3,9 +3,9 @@ import time
 import argparse
 import numpy as np
 import torch
-from hyperopt import hp, fmin, tpe, Trials, STATUS_OK, space_eval
+from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
 from train_model import train_NN, train_model_kfold, train_model_kfold_2r
-from mfbox import act_dict
+from model_wrappers import act_dict
 # import tqdm
 import sys
 from sklearn.decomposition import PCA
