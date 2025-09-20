@@ -54,7 +54,7 @@ def objective(params):
     else:
         return {'loss': tv_loss, 'status': STATUS_OK}
 
-def pca_decomp(y, explained_min=0.999, standardize=False):
+def pca_decomp(y, explained_min=0.999, n_PCA=None, standardize=False):
         pca = PCA()
         pca.fit(y)
         # Explained variance ratio for each PC
@@ -64,7 +64,12 @@ def pca_decomp(y, explained_min=0.999, standardize=False):
         cumulative_variance = np.cumsum(explained_variance)
 
         # Find the number of PCs that explain args.min_pca of the variance
-        n_components = np.argmax(cumulative_variance > explained_min) + 1
+        # enforce n_components =< n_PCA if n_PCA is provided
+        if n_PCA is not None:
+            print("Provided n_PCA:", n_PCA, "ignoring explained_min.")
+            n_components = n_PCA
+        else:
+            n_components = np.argmax(cumulative_variance > explained_min) + 1
 
         # Transform the data, only keep the first n_components
         y = pca.transform(y)[:, :n_components]
@@ -158,6 +163,8 @@ if __name__ == "__main__":
 
     parser.add_argument('--f_lambda_fine', type=float, default=3, help='Factor to fine-tune the L2 regularization strength around the best found value')
     parser.add_argument('--r_hidden_size_fine', type=int, default=24, help='Radius (half range) to fine-tune the hidden size around the best found value')
+    # number of PCA components to keep 
+    parser.add_argument('--n_pca', type=int, default=None, help='Number of PCA components to keep (if not provided, use the number that gives args.min_pca explained variance)')
 
     # parser.add_argument('--trials_k1', type=int, default=None, help='Number of trials for the first round of K-Fold training')
 
@@ -262,7 +269,7 @@ if __name__ == "__main__":
         # PCA decomposition
         if args.pca_allz:
             # PCA on all redshifts
-            y, mean_std = pca_decomp(y, explained_min=args.min_pca, standardize=args.standardize)
+            y, mean_std = pca_decomp(y, explained_min=args.min_pca, standardize=args.standardize, n_PCA=args.n_pca)
         else:
             # PCA on each redshift separately
             # pca per redshift
@@ -275,7 +282,7 @@ if __name__ == "__main__":
             for i in range(n_z):
                 ik_start = i * n_k
                 ik_end = (i + 1) * n_k
-                y_pca_z, mean_std_z = pca_decomp(y[:, ik_start:ik_end], explained_min=args.min_pca, standardize=args.standardize)
+                y_pca_z, mean_std_z = pca_decomp(y[:, ik_start:ik_end], explained_min=args.min_pca, standardize=args.standardize, n_PCA=args.n_pca)
                 # n_pc_zs.append(y_pca_z.shape[1])
                 y_pca.append(y_pca_z)
                 mean_std['pca_components'].append(mean_std_z['pca_components'])
