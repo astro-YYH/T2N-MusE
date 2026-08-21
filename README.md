@@ -137,6 +137,17 @@ Or specify epoch count per neuron:
 --epochs_neuron=1000
 ```
 
+Set the validation-loss weight used for per-fold scheduling, early stopping,
+checkpoint restoration, and seed selection (default: regularized training loss only):
+
+```bash
+--fold_val_weight=0.0  # regularized training loss only
+--fold_val_weight=0.5  # equal validation and regularized-training weights
+```
+
+Hyperparameter optimization always minimizes the validation loss averaged across
+the selected folds, independently of this setting.
+
 Activation function:
 
 ```bash
@@ -258,4 +269,3 @@ loocv/muse-All-2.ipynb
 This corresponds to the **Optimal** model discussed in the T2N-MusE paper.
 
 The training data used in the T2N-MusE paper are under `data/`, named `muse_*`. Also, the data used to train GokuNEmu are `L*`.
-

@@ -42,17 +42,10 @@ def objective(params):
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
-    train_loss, val_loss, _, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
+    train_loss, val_loss, _, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight)
 
-    # optimize the average of training loss and validation loss
-
-    tv_loss = (train_loss + val_loss) / 2
-    # print(f"Training Loss: {train_loss:.6f}, Validation Loss: {val_loss:.6f}, sum: {sum_loss:.6f}\n")
-
-    if args.opt_val:
-        return {'loss': val_loss, 'status': STATUS_OK}
-    else:
-        return {'loss': tv_loss, 'status': STATUS_OK}
+    # Optimize generalization directly; training loss is reported only as a diagnostic.
+    return {'loss': val_loss, 'status': STATUS_OK}
 
 def pca_decomp(y, explained_min=0.999, n_PCA=None, standardize=False):
         pca = PCA()
@@ -131,8 +124,10 @@ if __name__ == "__main__":
     # lgk file
     parser.add_argument('--lgk', type=str, default=None, help='Path to the lgk file')
     parser.add_argument('--zero_centering', action='store_true', help='Zero-center the output data')
-    # optimize training + validation loss
-    parser.add_argument('--opt_val', action='store_true', help='Optimize validation loss')  # if False, optimize training loss + validation loss
+    # Retained for compatibility; validation loss is now always optimized.
+    parser.add_argument('--opt_val', action='store_true', help=argparse.SUPPRESS)
+    parser.add_argument('--fold_val_weight', type=float, default=0,
+                        help='Validation-loss weight in the per-fold stopping objective (0 to 1)')
     parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
     parser.add_argument('--trials_train', type=int, default=1, help='Number of trials per k-fold training')
     parser.add_argument('--k2r', action='store_true', help='Use the 2-round k-fold training')
@@ -169,6 +164,9 @@ if __name__ == "__main__":
     # parser.add_argument('--trials_k1', type=int, default=None, help='Number of trials for the first round of K-Fold training')
 
     args = parser.parse_args()
+
+    if not 0 <= args.fold_val_weight <= 1:
+        parser.error('--fold_val_weight must be between 0 and 1')
 
     train_kfold = train_model_kfold_2r if args.k2r else train_model_kfold
 
@@ -345,15 +343,15 @@ if __name__ == "__main__":
             best_num_layers = num_layers
             best_decay = decay
             # only train the model with the provided hyperparameters
-            train_loss, val_loss, _, _ = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
+            train_loss, val_loss, _, _ = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight)
 
-            best_loss = (train_loss + val_loss) / 2
+            best_loss = val_loss
 
         else:
 
             # Run Bayesian optimization
             best_hyperparams = fmin(
-                fn=objective,        # Function to minimize (training + validation loss)
+                fn=objective,        # Function to minimize (validation loss)
                 space=space,         # Hyperparameter search space
                 algo=tpe.suggest,    # Tree-structured Parzen Estimator (TPE)
                 max_evals=n_trials,        # Number of trials to run
@@ -419,7 +417,7 @@ if __name__ == "__main__":
     print_elapsed(start_time)
 
     # Evaluate the model with the best hyperparameters
-    train_loss, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std)
+    train_loss, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -428,7 +426,7 @@ if __name__ == "__main__":
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
     epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std, train_loss_lower=train_loss*.8)
+    _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std, train_loss_lower=train_loss*.8, fold_val_weight=args.fold_val_weight)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     print_elapsed(start_time)
