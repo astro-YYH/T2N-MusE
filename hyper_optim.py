@@ -25,6 +25,16 @@ def print_elapsed(start_time):
 show_progress = sys.stdout.isatty()  # True if running interactively, False if output is redirected
 # tqdm.tqdm.disable = not show_progress  # Disable if not interactive
 
+def best_completed_loss(trials_obj):
+    """Return the lowest finite loss among successful completed trials."""
+    losses = []
+    for trial in trials_obj.trials:
+        result = trial.get('result', {})
+        loss = result.get('loss')
+        if result.get('status') == STATUS_OK and loss is not None and np.isfinite(loss):
+            losses.append(loss)
+    return min(losses, default=float('inf'))
+
 # Function to evaluate a given set of hyperparameters
 def objective(params):
     # Determine which trials object is active
@@ -32,12 +42,12 @@ def objective(params):
         trial_number = len(trials_fine.trials)
         round_name = "Fine-Tuning"
         trials_max = n_trials_fine
-        best_loss = min([trial['result']['loss'] for trial in trials_fine.trials[:-1]]) if len(trials_fine.trials) > 1 else float('inf')
+        best_loss = best_completed_loss(trials_fine)
     else:
         trial_number = len(trials.trials)
         round_name = "Initial Search"
         trials_max = args.trials
-        best_loss = min([trial['result']['loss'] for trial in trials.trials[:-1]]) if len(trials.trials) > 1 else float('inf')
+        best_loss = best_completed_loss(trials)
 
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
@@ -362,7 +372,7 @@ if __name__ == "__main__":
             best_num_layers = num_layers_choices[best_hyperparams['num_layers']]
             best_decay = best_hyperparams['decay']
 
-            best_loss = min([trial['result']['loss'] for trial in trials.trials[:-1]]) if len(trials.trials) > 1 else float('inf')
+            best_loss = best_completed_loss(trials)
 
         print("\n🎯 Best Hyperparameters Found in the initial search:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
@@ -396,7 +406,7 @@ if __name__ == "__main__":
                 trials=trials_fine,
                 show_progressbar=show_progress
             )
-            best_loss_fine = min([trial['result']['loss'] for trial in trials_fine.trials[:-1]]) if len(trials_fine.trials) > 1 else float('inf')
+            best_loss_fine = best_completed_loss(trials_fine)
 
             if best_loss_fine < best_loss:
                 # ✅ Directly assign the fine-tuned best hyperparameters
