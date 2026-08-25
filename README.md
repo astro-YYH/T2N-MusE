@@ -137,16 +137,48 @@ Or specify epoch count per neuron:
 --epochs_neuron=1000
 ```
 
-Set the validation-loss weight used for per-fold scheduling, early stopping,
-checkpoint restoration, and seed selection (default: regularized training loss only):
+Set the validation-loss weight used for per-run scheduling, early stopping, and
+checkpoint restoration (default: regularized training loss only):
 
 ```bash
 --fold_val_weight=0.0  # regularized training loss only
 --fold_val_weight=0.5  # equal validation and regularized-training weights
 ```
 
+Configure early stopping with a patience in epochs and the minimum relative
+loss decrease required to reset that patience:
+
+```bash
+--early_stopping_patience=300
+--early_stopping_fraction=0.005  # require a 0.5% decrease within the patience window
+```
+
 Hyperparameter optimization always minimizes the validation loss averaged across
 the selected folds, independently of this setting.
+
+For standard K-fold training, seeds are evaluated outermost across all selected
+folds. During hyperparameter optimization, each fold retains the usual
+regularized-loss scheduling and early stopping. The seed with the lowest mean
+regularized loss across folds is selected, and that seed's mean validation loss
+is returned to the optimizer.
+
+After hyperparameter optimization, only the selected seed is rerun across the
+folds for a common epoch budget to construct a mean validation curve. Its minimum
+sets the duration of final full-data training. That final fit starts from the
+selected seed's random initialization, uses the original learning rate, and does
+not inherit fold weights or a terminal fold learning rate.
+
+For the `--k2r` path, hyperparameter optimization likewise retains the ordinary
+two-round training procedure. After hyperparameter selection, the Round 2 folds
+are rerun from the shared Round 1 model for a common epoch budget, and the minimum
+of their mean validation curve selects the final Round 2 duration. Full-data
+training starts from that same Round 1 model and Round 2 learning rate; it does
+not start from a fold-adapted Round 2 model.
+
+Fold runs may realize different learning-rate histories under the shared plateau
+scheduler. Validation curves are nevertheless aligned by epoch because they
+evaluate the same scheduling policy; the full-data run applies that policy again
+to its own regularized loss.
 
 Activation function:
 

@@ -52,10 +52,13 @@ def objective(params):
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
-    train_loss, val_loss, _, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight)
+    train_loss, val_loss, best_seed, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction)
 
     # Optimize generalization directly; training loss is reported only as a diagnostic.
-    return {'loss': val_loss, 'status': STATUS_OK}
+    result = {'loss': val_loss, 'status': STATUS_OK}
+    if not args.k2r:
+        result['best_seed'] = best_seed
+    return result
 
 def pca_decomp(y, explained_min=0.999, n_PCA=None, standardize=False):
         pca = PCA()
@@ -138,6 +141,10 @@ if __name__ == "__main__":
     parser.add_argument('--opt_val', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--fold_val_weight', type=float, default=0,
                         help='Validation-loss weight in the per-fold stopping objective (0 to 1)')
+    parser.add_argument('--early_stopping_patience', type=int, default=300,
+                        help='Epochs without a sufficient relative loss decrease before stopping')
+    parser.add_argument('--early_stopping_fraction', type=float, default=0.005,
+                        help='Minimum relative loss decrease required to reset early-stopping patience')
     parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
     parser.add_argument('--trials_train', type=int, default=1, help='Number of trials per k-fold training')
     parser.add_argument('--k2r', action='store_true', help='Use the 2-round k-fold training')
@@ -177,6 +184,10 @@ if __name__ == "__main__":
 
     if not 0 <= args.fold_val_weight <= 1:
         parser.error('--fold_val_weight must be between 0 and 1')
+    if args.early_stopping_patience < 1:
+        parser.error('--early_stopping_patience must be at least 1')
+    if not 0 <= args.early_stopping_fraction < 1:
+        parser.error('--early_stopping_fraction must be between 0 (inclusive) and 1 (exclusive)')
 
     train_kfold = train_model_kfold_2r if args.k2r else train_model_kfold
 
@@ -209,6 +220,7 @@ if __name__ == "__main__":
     num_layers = args.num_layers
     decay = args.decay
     
+    selected_seed = None
     if args.train_one:
         n_trials = 1
         if args.trials > 1:
@@ -353,7 +365,9 @@ if __name__ == "__main__":
             best_num_layers = num_layers
             best_decay = decay
             # only train the model with the provided hyperparameters
-            train_loss, val_loss, _, _ = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight)
+            train_loss, val_loss, candidate_seed, _ = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction)
+            if not args.k2r:
+                selected_seed = candidate_seed
 
             best_loss = val_loss
 
@@ -373,6 +387,8 @@ if __name__ == "__main__":
             best_decay = best_hyperparams['decay']
 
             best_loss = best_completed_loss(trials)
+            if not args.k2r:
+                selected_seed = trials.best_trial['result']['best_seed']
 
         print("\n🎯 Best Hyperparameters Found in the initial search:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
@@ -413,6 +429,8 @@ if __name__ == "__main__":
                 best_hidden_size = hidden_size_choices_fine[best_hyperparams_fine['hidden_size']]
                 best_num_layers = num_layers_choices_fine[best_hyperparams_fine['num_layers']]
                 best_decay = best_hyperparams_fine['decay']
+                if not args.k2r:
+                    selected_seed = trials_fine.best_trial['result']['best_seed']
             else:
                 # ✅ Keep the original best hyperparameters
                 print("Fine-tuning did not yield better results. Keeping the original best hyperparameters.")
@@ -427,7 +445,10 @@ if __name__ == "__main__":
     print_elapsed(start_time)
 
     # Evaluate the model with the best hyperparameters
-    train_loss, _, best_fold, lr_best = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight)
+    if args.k2r:
+        train_loss, _, initialization, training_value = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=True)
+    else:
+        train_loss, _, initialization, training_value = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=True, fixed_seed=selected_seed)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -435,8 +456,17 @@ if __name__ == "__main__":
     print_elapsed(start_time)
 
     print(f"Training the model on the full dataset with the best hyperparameters...")
-    epochs = args.epochs if args.epochs is not None else args.epochs_neuron * best_params['hidden_size'] * best_params['num_layers']
-    _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=best_fold,mean_std=mean_std, train_loss_lower=train_loss*.8, fold_val_weight=args.fold_val_weight)
+    if args.k2r:
+        round1_model = initialization
+        lr_best = training_value['lr']
+        selected_epochs = training_value['epochs']
+        print(f"Starting from the Round 1 model for {selected_epochs} validation-selected Round 2 epochs")
+        _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=round1_model, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False)
+    else:
+        best_seed = initialization
+        selected_epochs = training_value
+        print(f"Using seed {best_seed} for {selected_epochs} validation-selected epochs")
+        _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, random_seed=best_seed, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     print_elapsed(start_time)
