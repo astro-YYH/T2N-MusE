@@ -182,6 +182,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    print("Run arguments:")
+    for name, value in vars(args).items():
+        print(f"  {name}: {value}")
+
     if not 0 <= args.fold_val_weight <= 1:
         parser.error('--fold_val_weight must be between 0 and 1')
     if args.early_stopping_patience < 1:

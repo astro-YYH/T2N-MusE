@@ -67,6 +67,10 @@ def select_best_seed(seed_results):
         seed: float(np.mean([result['regularized_training_loss'] for result in results]))
         for seed, results in seed_results.items()
     }
+    seed_val_losses = {
+        seed: float(np.mean([result['validation_loss'] for result in results]))
+        for seed, results in seed_results.items()
+    }
     best_seed = min(seed_reg_losses, key=seed_reg_losses.get)
     best_results = seed_results[best_seed]
     completed_epochs = [
@@ -79,6 +83,7 @@ def select_best_seed(seed_results):
         'mean_validation_loss': float(np.mean([result['validation_loss'] for result in best_results])),
         'mean_regularized_loss': seed_reg_losses[best_seed],
         'seed_regularized_losses': seed_reg_losses,
+        'seed_validation_losses': seed_val_losses,
         'max_completed_epochs': max(completed_epochs) if completed_epochs else None,
     }
 
@@ -837,7 +842,9 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
     selection = select_best_seed(seed_results)
     best_seed = selection['best_seed']
     for seed, reg_loss in selection['seed_regularized_losses'].items():
-        print(f"   Seed {seed}: mean regularized loss {reg_loss:.6e}")
+        val_loss = selection['seed_validation_losses'][seed]
+        print(f"   Seed {seed}: mean regularized loss {reg_loss:.6e}, "
+              f"mean validation loss {val_loss:.6e}")
     print(f"✅ Best seed: {best_seed} with mean regularized loss "
           f"{selection['mean_regularized_loss']:.6e}")
     print(f"✅ Best-seed average losses: training: {selection['mean_training_loss']:.6e}, "
