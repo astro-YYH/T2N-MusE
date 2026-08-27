@@ -1,6 +1,7 @@
 import os
 import time
 import argparse
+import copy
 import numpy as np
 import torch
 from hyperopt import hp, fmin, tpe, Trials, STATUS_OK
@@ -24,6 +25,7 @@ def print_elapsed(start_time):
 # Automatically disable tqdm progress bar if not running interactively
 show_progress = sys.stdout.isatty()  # True if running interactively, False if output is redirected
 # tqdm.tqdm.disable = not show_progress  # Disable if not interactive
+k2r_curve_cache = None
 
 def best_completed_loss(trials_obj):
     """Return the lowest finite loss among successful completed trials."""
@@ -37,6 +39,7 @@ def best_completed_loss(trials_obj):
 
 # Function to evaluate a given set of hyperparameters
 def objective(params):
+    global k2r_curve_cache
     # Determine which trials object is active
     if len(trials_fine.trials) > 0:  # If fine-tuning has started, count from trials_fine
         trial_number = len(trials_fine.trials)
@@ -52,12 +55,25 @@ def objective(params):
     print(f"\n🔹 {round_name} | Trial {trial_number}/{trials_max} | Best loss {best_loss} | Testing with: {params}")
     
     # Train the model with K-Fold CV
-    train_loss, val_loss, best_seed, _ = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction)
+    train_loss, val_loss, initialization, training_value = train_kfold(params['num_layers'], params['hidden_size'], x_tensor, y_tensor, decay=params['decay'], k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=args.hyperopt_validation_curve, exact_duration_model=args.hyperopt_validation_curve)
 
     # Optimize generalization directly; training loss is reported only as a diagnostic.
     result = {'loss': val_loss, 'status': STATUS_OK}
     if not args.k2r:
-        result['best_seed'] = best_seed
+        result['best_seed'] = initialization
+        if args.hyperopt_validation_curve:
+            result['selected_epochs'] = training_value
+    elif args.hyperopt_validation_curve:
+        result['selected_epochs'] = training_value['epochs']
+        result['round2_lr'] = training_value['lr']
+        if np.isfinite(val_loss) and (k2r_curve_cache is None
+                                      or val_loss < k2r_curve_cache['loss']):
+            k2r_curve_cache = {
+                'loss': val_loss,
+                'round1_model': copy.deepcopy(initialization).to('cpu'),
+                'round2_lr': training_value['lr'],
+                'selected_epochs': training_value['epochs'],
+            }
     return result
 
 def pca_decomp(y, explained_min=0.999, n_PCA=None, standardize=False):
@@ -145,6 +161,8 @@ if __name__ == "__main__":
                         help='Epochs without a sufficient relative loss decrease before stopping')
     parser.add_argument('--early_stopping_fraction', type=float, default=0.005,
                         help='Minimum relative loss decrease required to reset early-stopping patience')
+    parser.add_argument('--hyperopt_validation_curve', action='store_true',
+                        help='Select each Hyperopt trial duration from its resumed mean validation curve')
     parser.add_argument('--test_folds', type=str, default=None, help='Comma-separated list of fold indices to test (e.g., "0,2,4")')
     parser.add_argument('--trials_train', type=int, default=1, help='Number of trials per k-fold training')
     parser.add_argument('--k2r', action='store_true', help='Use the 2-round k-fold training')
@@ -225,6 +243,7 @@ if __name__ == "__main__":
     decay = args.decay
     
     selected_seed = None
+    selected_epochs = None
     if args.train_one:
         n_trials = 1
         if args.trials > 1:
@@ -369,9 +388,18 @@ if __name__ == "__main__":
             best_num_layers = num_layers
             best_decay = decay
             # only train the model with the provided hyperparameters
-            train_loss, val_loss, candidate_seed, _ = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction)
+            train_loss, val_loss, candidate_initialization, candidate_training_value = train_kfold(best_num_layers, best_hidden_size, x_tensor, y_tensor, decay=best_decay, k=args.kfolds, epochs=args.epochs, epochs_neuron=args.epochs_neuron, lr=args.lr, device=device, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=args.hyperopt_validation_curve, exact_duration_model=args.hyperopt_validation_curve)
             if not args.k2r:
-                selected_seed = candidate_seed
+                selected_seed = candidate_initialization
+                if args.hyperopt_validation_curve:
+                    selected_epochs = candidate_training_value
+            elif args.hyperopt_validation_curve and np.isfinite(val_loss):
+                k2r_curve_cache = {
+                    'loss': val_loss,
+                    'round1_model': copy.deepcopy(candidate_initialization).to('cpu'),
+                    'round2_lr': candidate_training_value['lr'],
+                    'selected_epochs': candidate_training_value['epochs'],
+                }
 
             best_loss = val_loss
 
@@ -393,6 +421,8 @@ if __name__ == "__main__":
             best_loss = best_completed_loss(trials)
             if not args.k2r:
                 selected_seed = trials.best_trial['result']['best_seed']
+                if args.hyperopt_validation_curve:
+                    selected_epochs = trials.best_trial['result']['selected_epochs']
 
         print("\n🎯 Best Hyperparameters Found in the initial search:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
@@ -435,6 +465,8 @@ if __name__ == "__main__":
                 best_decay = best_hyperparams_fine['decay']
                 if not args.k2r:
                     selected_seed = trials_fine.best_trial['result']['best_seed']
+                    if args.hyperopt_validation_curve:
+                        selected_epochs = trials_fine.best_trial['result']['selected_epochs']
             else:
                 # ✅ Keep the original best hyperparameters
                 print("Fine-tuning did not yield better results. Keeping the original best hyperparameters.")
@@ -448,11 +480,40 @@ if __name__ == "__main__":
 
     print_elapsed(start_time)
 
-    # Evaluate the model with the best hyperparameters
-    if args.k2r:
-        train_loss, _, initialization, training_value = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=True)
+    # Reuse duration metadata from Hyperopt when available; otherwise evaluate the best setup now.
+    if args.hyperopt_validation_curve and not args.train_one:
+        if args.save_kfold:
+            save_kwargs = dict(
+                **best_params, x_data=x_tensor, y_data=y_tensor,
+                k=args.kfolds, save_kf_model=True,
+                model_dir=args.model_dir, lr=args.lr, device=device,
+                epochs=args.epochs, epochs_neuron=args.epochs_neuron,
+                shuffle=args.shuffle, activation=activation,
+                zero_centering=args.zero_centering, lgk=lgk,
+                test_folds=test_folds, num_trials=args.trials_train,
+                mean_std=mean_std, fold_val_weight=args.fold_val_weight,
+                early_stopping_patience=args.early_stopping_patience,
+                early_stopping_fraction=args.early_stopping_fraction,
+                select_duration=True, exact_duration_model=True,
+            )
+            if not args.k2r:
+                save_kwargs['fixed_seed'] = selected_seed
+            train_kfold(**save_kwargs)
+        if args.k2r:
+            if k2r_curve_cache is None:
+                raise RuntimeError("Missing the winning k2r Round 1 checkpoint.")
+            initialization = k2r_curve_cache['round1_model'].to(device)
+            training_value = {
+                'lr': k2r_curve_cache['round2_lr'],
+                'epochs': k2r_curve_cache['selected_epochs'],
+            }
+        else:
+            initialization = selected_seed
+            training_value = selected_epochs
+    elif args.k2r:
+        _, _, initialization, training_value = train_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=True, exact_duration_model=args.hyperopt_validation_curve)
     else:
-        train_loss, _, initialization, training_value = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=True, fixed_seed=selected_seed)
+        _, _, initialization, training_value = train_model_kfold(**best_params, x_data=x_tensor, y_data=y_tensor, k=args.kfolds, save_kf_model=args.save_kfold, model_dir=args.model_dir, lr=args.lr, device=device, epochs=args.epochs, epochs_neuron=args.epochs_neuron, shuffle=args.shuffle, activation=activation, zero_centering=args.zero_centering, lgk=lgk, test_folds=test_folds, num_trials=args.trials_train, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, select_duration=True, fixed_seed=selected_seed, exact_duration_model=args.hyperopt_validation_curve)
 
     # train and save the model with the best hyperparameters
     # Save the model if required
@@ -465,12 +526,12 @@ if __name__ == "__main__":
         lr_best = training_value['lr']
         selected_epochs = training_value['epochs']
         print(f"Starting from the Round 1 model for {selected_epochs} validation-selected Round 2 epochs")
-        _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=round1_model, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False)
+        _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=round1_model, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False, restore_best_model=not args.hyperopt_validation_curve)
     else:
         best_seed = initialization
         selected_epochs = training_value
         print(f"Using seed {best_seed} for {selected_epochs} validation-selected epochs")
-        _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, random_seed=best_seed, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False)
+        _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, random_seed=best_seed, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False, restore_best_model=not args.hyperopt_validation_curve)
 
     # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     print_elapsed(start_time)
