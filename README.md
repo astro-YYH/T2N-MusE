@@ -159,7 +159,8 @@ Optionally use the mean validation curve inside every hyperparameter trial:
 --hyperopt_validation_curve
 ```
 
-This mode keeps the usual L2-based per-fold early stopping and seed selection.
+This mode keeps the usual L2-based per-fold early stopping and validation-based
+seed selection.
 After selecting a seed, folds that stopped earlier resume from their raw model,
 optimizer, and scheduler states until they reach the longest fold duration. The
 minimum of the completed mean validation curve is returned to Hyperopt and its
@@ -180,7 +181,7 @@ the selected folds, independently of this setting.
 For standard K-fold training, seeds are evaluated outermost across all selected
 folds. During hyperparameter optimization, each fold retains the usual
 regularized-loss scheduling and early stopping. The seed with the lowest mean
-regularized loss across folds is selected. By default, that seed's mean restored
+validation loss across folds is selected. By default, that seed's mean restored
 validation loss is returned to the optimizer; with
 `--hyperopt_validation_curve`, its validation-curve minimum is returned instead.
 
@@ -192,7 +193,10 @@ uses the original learning rate, and does not inherit fold weights or a terminal
 fold learning rate.
 
 For the `--k2r` path, hyperparameter optimization likewise retains the ordinary
-two-round training procedure. After hyperparameter selection, shorter Round 2
+two-round training procedure. Round 1 has no equivalent fold-wise validation
+score for seed selection, so its initialization continues to be selected using
+the regularized-training-based fold objective by default. After hyperparameter
+selection, shorter Round 2
 folds resume from their raw stopping states; each trajectory originally starts
 from the shared Round 1 model. The minimum of their completed mean validation
 curve selects the final Round 2 duration. Full-data training starts from that

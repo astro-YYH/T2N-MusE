@@ -58,7 +58,7 @@ class EarlyStopping:
 
         return self.wait >= self.patience
 
-# Select the seed with the lowest mean regularized loss across its folds.
+# Select the seed with the lowest mean validation loss across its folds.
 def select_best_seed(seed_results):
     if not seed_results or any(not results for results in seed_results.values()):
         raise ValueError("seed_results must contain at least one fold result per seed.")
@@ -71,7 +71,7 @@ def select_best_seed(seed_results):
         seed: float(np.mean([result['validation_loss'] for result in results]))
         for seed, results in seed_results.items()
     }
-    best_seed = min(seed_reg_losses, key=seed_reg_losses.get)
+    best_seed = min(seed_val_losses, key=seed_val_losses.get)
     best_results = seed_results[best_seed]
     completed_epochs = [
         result['epochs_completed'] for result in best_results
@@ -935,7 +935,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
         return None, None, None, None
 
     seed_results = {}
-    best_duration_seed_loss = float("inf")
+    best_duration_seed_val_loss = float("inf")
     best_duration_fold_runs = None
     seeds = [fixed_seed] if fixed_seed is not None else [42 + trial for trial in range(num_trials)]
     for trial, seed in enumerate(seeds):
@@ -981,12 +981,12 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
                 })
 
         if select_duration:
-            seed_reg_loss = float(np.mean([
-                result['regularized_training_loss']
+            seed_val_loss = float(np.mean([
+                result['validation_loss']
                 for result in seed_results[seed]
             ]))
-            if seed_reg_loss < best_duration_seed_loss:
-                best_duration_seed_loss = seed_reg_loss
+            if seed_val_loss < best_duration_seed_val_loss:
+                best_duration_seed_val_loss = seed_val_loss
                 best_duration_fold_runs = seed_fold_runs
 
     selection = select_best_seed(seed_results)
@@ -995,8 +995,8 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
         val_loss = selection['seed_validation_losses'][seed]
         print(f"   Seed {seed}: mean regularized loss {reg_loss:.6e}, "
               f"mean validation loss {val_loss:.6e}")
-    print(f"✅ Best seed: {best_seed} with mean regularized loss "
-          f"{selection['mean_regularized_loss']:.6e}")
+    print(f"✅ Best seed: {best_seed} with mean validation loss "
+          f"{selection['mean_validation_loss']:.6e}")
     print(f"✅ Best-seed average losses: training: {selection['mean_training_loss']:.6e}, "
           f"validation: {selection['mean_validation_loss']:.6e}\n")
 
