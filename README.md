@@ -1,6 +1,6 @@
 # T2N-MusE
 
-**T2N-MusE** (Triple-2 Neural Network Multifidelity Cosmological Emulation Framework) enables efficient neural network training for regression tasks in cosmological modeling.
+**T2N-MusE** (Triple-2 Neural Network Multifidelity Cosmological Emulation Framework) enables efficient neural network training for regression tasks in cosmological modeling. If you use this framework, please cite this paper: https://arxiv.org/abs/2507.07184 (Yang et al. 2026)
 
 We recommend a shallow clone for most users who do not care about the entire commit history:
 ```
@@ -116,7 +116,7 @@ Enable 2-phase training and specify test folds:
 Set number of training trials per hyperparameter configuration (used only in phase 1 for 2-phase):
 
 ```bash
---trials_train=15
+--trials_train=5
 ```
 
 Initial learning rate:
@@ -153,7 +153,8 @@ loss decrease required to reset that patience:
 --early_stopping_fraction=0.005  # require a 0.5% decrease within the patience window
 ```
 
-Optionally use the mean validation curve inside every hyperparameter trial:
+We recommend enabling mean-validation-curve selection inside every
+hyperparameter trial:
 
 ```bash
 --hyperopt_validation_curve
@@ -289,7 +290,8 @@ Retrain using saved configuration:
 Train a low-fidelity model with 2-phase training:
 
 ```bash
-python hyper_optim.py --k2r --trials=80 --trials_train=15 \
+python hyper_optim.py --k2r --trials=80 --trials_train=5 \
+--hyperopt_validation_curve \
 --data_x=./data/muse_L2/train_input.txt \
 --data_y=./data/muse_L2/train_output.txt \
 --bound_x=./data/input_limits-W.txt \
@@ -306,6 +308,7 @@ Train a low- to high-fidelity correction model (NN_LH):
 
 ```bash
 python hyper_optim.py --trials=80 \
+--hyperopt_validation_curve \
 --data_x=./data/muse_L2Hr/train_input.txt \
 --data_y=./data/muse_L2Hr/train_output.txt \
 --bound_x=./data/input_limits-W.txt \
@@ -314,7 +317,7 @@ python hyper_optim.py --trials=80 \
 --lr=0.01 --kfolds=21 \
 --lgk=./data/muse_L2Hr/kf.txt \
 --zero_centering \
---trials_train=5 \
+--trials_train=2 \
 --min_pca=0.99999 &> muse-HO-2_L2Hr.log &
 ```
 

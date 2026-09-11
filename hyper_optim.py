@@ -145,9 +145,9 @@ if __name__ == "__main__":
     # input bounds
     parser.add_argument('--bound_x', type=str, default=None, help='Bounds for the input data')
     # epochs
-    parser.add_argument('--epochs', type=int, default=None, help='Number of epochs')
+    parser.add_argument('--epochs', type=int, default=8000, help='Number of epochs')
     # epochs per neuron
-    parser.add_argument('--epochs_neuron', type=int, default=1000, help='Number of epochs per neuron')
+    parser.add_argument('--epochs_neuron', type=int, default=20, help='Number of epochs per neuron')
     # activation function
     parser.add_argument('--activation', type=str, default='SiLU', help='Activation function')
     # lgk file
