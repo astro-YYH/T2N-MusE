@@ -839,7 +839,8 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
         print(f"⚠️ No validation data provided. Regularized loss will be used to select the best model.")
 
     best_model = None
-    best_summed_loss = float("inf")
+    best_selection_loss = float("inf")
+    trial_results = []
 
     for trial in range(num_trials):
         seed = 42 + trial  # Change seed for each trial
@@ -853,22 +854,32 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
                                                   early_stopping_patience=early_stopping_patience,
                                                   early_stopping_fraction=early_stopping_fraction)
 
-        effective_val_weight = fold_val_weight if val_provided else 0
-        summed_loss = ((1 - effective_val_weight) * reg_loss
-                       + effective_val_weight * val_loss)
+        selection_loss = val_loss if val_provided else reg_loss
+        trial_results.append({
+            'seed': seed,
+            'regularized_training_loss': reg_loss,
+            'validation_loss': val_loss,
+        })
             
-        if summed_loss < best_summed_loss:
+        if selection_loss < best_selection_loss:
             best_model = model
-            best_summed_loss = summed_loss
+            best_selection_loss = selection_loss
             best_train_loss = train_loss
             best_val_loss = val_loss
             best_reg_loss = reg_loss
             lr_best = lr_fine
             seed_best = seed
-            # print(f"✅ Best model selected for this fold (Validation Loss + Training Loss: {best_summed_loss:.6e})")
     #retrain and save the best model
 
-    print(f"✅ Best model selected with fold objective: {best_summed_loss:.6e}")
+    for result in trial_results:
+        print(f"   Seed {result['seed']}: regularized loss "
+              f"{result['regularized_training_loss']:.6e}, validation loss "
+              f"{result['validation_loss']:.6e}")
+    selection_name = "validation loss" if val_provided else "regularized loss"
+    print(f"✅ Best seed: {seed_best} with {selection_name} "
+          f"{best_selection_loss:.6e}")
+    print(f"➡️ Round 2 initialization: using the selected Round 1 model "
+          f"weights from seed {seed_best}")
     if save_model and best_model is not None:
         print(f"🔄 Retraining the best model with seed {seed_best}... (usually leads to a slightly better model)")
         # retrain and save the best model
