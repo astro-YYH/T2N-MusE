@@ -424,11 +424,10 @@ if __name__ == "__main__":
                 if args.hyperopt_validation_curve:
                     selected_epochs = trials.best_trial['result']['selected_epochs']
 
-        print("\n🎯 Best Hyperparameters Found in the initial search:")
-        print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
-
-        # print elapsed time
-        print_elapsed(start_time)
+        if n_trials_fine > 0:
+            print("\n🎯 Hyperparameters entering fine-tuning:")
+            print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
+            print_elapsed(start_time)
 
         # Define a refined search space
         hidden_size_choices_fine = list(range(max(8, best_hidden_size - args.r_hidden_size_fine), (best_hidden_size + args.r_hidden_size_fine), 2))
@@ -520,18 +519,16 @@ if __name__ == "__main__":
     # train the model on the full dataset
     print_elapsed(start_time)
 
-    print(f"Training the model on the full dataset with the best hyperparameters...")
     if args.k2r:
         round1_model = initialization
         lr_best = training_value['lr']
         selected_epochs = training_value['epochs']
-        print(f"Starting from the Round 1 model for {selected_epochs} validation-selected Round 2 epochs")
+        print(f"Training on the full dataset from the Round 1 model for {selected_epochs} validation-selected Round 2 epochs")
         _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=lr_best, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, initial_model=round1_model, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False, restore_best_model=not args.hyperopt_validation_curve)
     else:
         best_seed = initialization
         selected_epochs = training_value
-        print(f"Using seed {best_seed} for {selected_epochs} validation-selected epochs")
+        print(f"Training on the full dataset with seed {best_seed} for {selected_epochs} validation-selected epochs")
         _, _, _, _, _ = train_NN(best_params['num_layers'], best_params['hidden_size'], x_tensor, y_tensor, decay=best_params['decay'], device=device, save_model=args.save_best, model_path=model_path, lr=args.lr, epochs=selected_epochs, activation=activation, lgk=lgk, zero_centering=args.zero_centering, random_seed=best_seed, mean_std=mean_std, fold_val_weight=args.fold_val_weight, early_stopping_patience=args.early_stopping_patience, early_stopping_fraction=args.early_stopping_fraction, use_early_stopping=False, restore_best_model=not args.hyperopt_validation_curve)
 
-    # print(f"⏱ Elapsed time: {time.time() - start_time:.2f} seconds\n")
     print_elapsed(start_time)

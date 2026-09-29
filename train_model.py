@@ -477,9 +477,6 @@ def complete_resumed_validation_curves(num_layers, hidden_size, x_data, y_data,
                 restore_best_model=False,
             )
             history = result[5]
-        else:
-            print(f"🔹 {label} | Fold {run_index}/{len(fold_runs)}: fold {fold} "
-                  f"already reached {curve_epochs} epochs 🔹")
         validation_curves.append(
             np.asarray(history['validation_loss'], dtype=np.float64)
         )
@@ -711,6 +708,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
     tested_count = 0  # Reset tested count for second round
 
     # second round of training: retrain using the best model's weights
+    print("🔹 Starting Round 2 cross-validation from the selected Round 1 model 🔹")
     for fold, train_idx, val_idx in fold_splits:
         tested_count += 1
         print(f"🔹 Fold {tested_count}/{total_folds_to_test}: Testing fold index {fold}/{k-1} 🔹")
@@ -738,25 +736,10 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
         fold_results.append((train_loss, val_loss, model, reg_loss, history,
                              resume_state, fold, train_idx, val_idx))
     
-    # best model
-    # best_model = min(fold_results, key=lambda x: x[0] + x[1])[2]
-
-    # print the best model fold
-    # idx_best = np.argmin([train_loss + val_loss for train_loss, val_loss, _, _ in fold_results])
-    # should select the best model fold based on regularized loss instead of train_loss + val_loss, because individual val loss is highly dependent on the tested point, reg loss is more stable
-    # choose the model with the regularized loss that is closest to the mean of the regularized loss
-    del_loss = np.abs(
-        np.array([result[3] for result in fold_results])
-        - np.mean([result[3] for result in fold_results])
-    )
-    idx_best = np.argmin(del_loss)
-    best_model = copy.deepcopy(fold_results[idx_best][2])
-    print(f"\n✅ Best Model Selected: model fold {fold_splits[idx_best][0]} (with regularized loss closest to the mean)")
-
     if fold_results:
         avg_val_loss = np.mean([result[1] for result in fold_results])
         avg_train_loss = np.mean([result[0] for result in fold_results])
-        print(f"✅ Average Loss Across Selected Folds: training: {avg_train_loss:.6e}, validation: {avg_val_loss:.6e}, mean(training,validation): {.5*(avg_train_loss+avg_val_loss):.6e}\n")
+        print(f"✅ Average Loss Across Selected Folds: training: {avg_train_loss:.6e}, validation: {avg_val_loss:.6e}\n")
 
         if select_duration:
             fold_runs = [
@@ -815,6 +798,10 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
             return (avg_train_loss, returned_val_loss,
                     round1_model, training_config)
 
+        # Preserve the representative-model return for callers without duration selection.
+        reg_losses = np.array([result[3] for result in fold_results])
+        idx_best = np.argmin(np.abs(reg_losses - np.mean(reg_losses)))
+        best_model = copy.deepcopy(fold_results[idx_best][2])
         return avg_train_loss, avg_val_loss, best_model, lr_best
     
 
@@ -878,8 +865,6 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
     selection_name = "validation loss" if val_provided else "regularized loss"
     print(f"✅ Best seed: {seed_best} with {selection_name} "
           f"{best_selection_loss:.6e}")
-    print(f"➡️ Round 2 initialization: using the selected Round 1 model "
-          f"weights from seed {seed_best}")
     if save_model and best_model is not None:
         print(f"🔄 Retraining the best model with seed {seed_best}... (usually leads to a slightly better model)")
         # retrain and save the best model
@@ -1006,9 +991,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
         val_loss = selection['seed_validation_losses'][seed]
         print(f"   Seed {seed}: mean regularized loss {reg_loss:.6e}, "
               f"mean validation loss {val_loss:.6e}")
-    print(f"✅ Best seed: {best_seed} with mean validation loss "
-          f"{selection['mean_validation_loss']:.6e}")
-    print(f"✅ Best-seed average losses: training: {selection['mean_training_loss']:.6e}, "
+    print(f"✅ Best seed: {best_seed}; average losses: training: {selection['mean_training_loss']:.6e}, "
           f"validation: {selection['mean_validation_loss']:.6e}\n")
 
     selected_epochs = None
