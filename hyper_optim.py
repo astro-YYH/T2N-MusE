@@ -462,6 +462,7 @@ if __name__ == "__main__":
                 best_hidden_size = hidden_size_choices_fine[best_hyperparams_fine['hidden_size']]
                 best_num_layers = num_layers_choices_fine[best_hyperparams_fine['num_layers']]
                 best_decay = best_hyperparams_fine['decay']
+                best_loss = best_loss_fine
                 if not args.k2r:
                     selected_seed = trials_fine.best_trial['result']['best_seed']
                     if args.hyperopt_validation_curve:
@@ -476,6 +477,7 @@ if __name__ == "__main__":
 
         print("\n🎯 Best Hyperparameters Found:")
         print(f"hidden_size: {best_hidden_size}, decay: {best_decay:.6e}, num_layers: {best_num_layers}")
+        print(f"Validation loss: {best_loss:.6e}")
 
     print_elapsed(start_time)
 
