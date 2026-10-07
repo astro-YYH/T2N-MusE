@@ -199,13 +199,15 @@ def find_max_batch_size(model, dataset, device, start=32, step=2):
     print(f"🎯 Optimal Batch Size Found: {best_batch}")
     return best_batch
 
-def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True, initial_model=None, random_seed=42, mean_std=None, train_loss_lower=0, fold_val_weight=0, early_stopping_patience=300, early_stopping_fraction=0.005, use_early_stopping=True, return_history=False, return_resume_state=False, resume_state=None, restore_best_model=True):
+def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, decay=0, epochs=1000, lr=0.1, device='cuda', save_model=False, model_path='model.pth', activation=nn.SiLU(), lgk=None, zero_centering=False, L2_reg=True, initial_model=None, random_seed=42, mean_std=None, train_loss_lower=0, fold_val_weight=0, early_stopping_patience=300, early_stopping_fraction=0.005, lr_patience=60, use_early_stopping=True, return_history=False, return_resume_state=False, resume_state=None, restore_best_model=True):
     set_seed(random_seed) # Set seed for reproducibility
 
     if not 0 <= fold_val_weight <= 1:
         raise ValueError("fold_val_weight must be between 0 and 1.")
     if early_stopping_patience < 1:
         raise ValueError("early_stopping_patience must be at least 1.")
+    if lr_patience < 0:
+        raise ValueError("lr_patience must be non-negative.")
     if not 0 <= early_stopping_fraction < 1:
         raise ValueError("early_stopping_fraction must be between 0 (inclusive) and 1 (exclusive).")
     if resume_state is not None and initial_model is not None:
@@ -260,7 +262,7 @@ def train_NN(num_layers, hidden_size, train_x, train_y, val_x=None, val_y=None, 
 
         
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=0 if L2_reg else decay)  # Use weight decay for L2 regularization
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=60)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=lr_patience)
     if resume_state is not None:
         optimizer.load_state_dict(resume_state['optimizer_state_dict'])
         scheduler.load_state_dict(resume_state['scheduler_state_dict'])
@@ -451,7 +453,7 @@ def complete_resumed_validation_curves(num_layers, hidden_size, x_data, y_data,
                                        fold_runs, decay, curve_epochs, lr, device,
                                        activation, zero_centering, fold_val_weight,
                                        early_stopping_patience,
-                                       early_stopping_fraction, label):
+                                       early_stopping_fraction, lr_patience, label):
     validation_curves = []
     print(f"🔄 Completing validation curves for {label} over {curve_epochs} epochs")
     for run_index, fold_run in enumerate(fold_runs, start=1):
@@ -472,6 +474,7 @@ def complete_resumed_validation_curves(num_layers, hidden_size, x_data, y_data,
                 random_seed=fold_run['seed'], fold_val_weight=fold_val_weight,
                 early_stopping_patience=early_stopping_patience,
                 early_stopping_fraction=early_stopping_fraction,
+                lr_patience=lr_patience,
                 use_early_stopping=False, return_history=True,
                 resume_state=fold_run['resume_state'],
                 restore_best_model=False,
@@ -619,7 +622,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
                       device='cuda', shuffle=False, activation=nn.SiLU(), zero_centering=False, 
                       lgk=None, test_folds=None, num_trials=None, mean_std=None,
                       fold_val_weight=0, early_stopping_patience=300,
-                      early_stopping_fraction=0.005, select_duration=False,
+                      early_stopping_fraction=0.005, lr_patience=60, select_duration=False,
                       exact_duration_model=False):
     """
     Train model using K-Fold Cross-Validation with an option to specify test folds.
@@ -698,7 +701,8 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
                  num_trials=num_trials, decay=decay, epochs=epochs, lr=lr, device=device, 
                  activation=activation, zero_centering=zero_centering, fold_val_weight=fold_val_weight,
                  early_stopping_patience=early_stopping_patience,
-                 early_stopping_fraction=early_stopping_fraction)
+                 early_stopping_fraction=early_stopping_fraction,
+                 lr_patience=lr_patience)
         
     # best_model = fold_results[idx_best][2]
     round1_model = copy.deepcopy(model)
@@ -727,6 +731,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
                           fold_val_weight=fold_val_weight,
                           early_stopping_patience=early_stopping_patience,
                           early_stopping_fraction=early_stopping_fraction,
+                          lr_patience=lr_patience,
                           return_history=select_duration,
                           return_resume_state=select_duration)
         train_loss, val_loss, model, _, reg_loss = result[:5]
@@ -763,6 +768,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
                 fold_val_weight=fold_val_weight,
                 early_stopping_patience=early_stopping_patience,
                 early_stopping_fraction=early_stopping_fraction,
+                lr_patience=lr_patience,
                 label="Round 2",
             )
             selected_epochs = duration['selected_epochs']
@@ -785,6 +791,7 @@ def train_model_kfold_2r(num_layers, hidden_size, x_data, y_data, decay=0, k=5, 
                         mean_std=mean_std, fold_val_weight=fold_val_weight,
                         early_stopping_patience=early_stopping_patience,
                         early_stopping_fraction=early_stopping_fraction,
+                        lr_patience=lr_patience,
                         use_early_stopping=False,
                         restore_best_model=not exact_duration_model,
                     )
@@ -810,7 +817,7 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
                               activation=nn.SiLU(), zero_centering=False, save_model=False,
                               model_path='model.pth', lgk=None, mean_std=None,
                               fold_val_weight=0, early_stopping_patience=300,
-                              early_stopping_fraction=0.005):
+                              early_stopping_fraction=0.005, lr_patience=60):
     """
     Train a single fold multiple times with different seeds and return the best model.
     
@@ -839,7 +846,8 @@ def train_fold_multiple_times(num_layers, hidden_size, train_x, train_y, val_x=N
                                                   activation=activation, zero_centering=zero_centering, random_seed=seed,
                                                   fold_val_weight=fold_val_weight,
                                                   early_stopping_patience=early_stopping_patience,
-                                                  early_stopping_fraction=early_stopping_fraction)
+                                                  early_stopping_fraction=early_stopping_fraction,
+                                                  lr_patience=lr_patience)
 
         selection_loss = val_loss if val_provided else reg_loss
         trial_results.append({
@@ -882,7 +890,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
                       device='cuda', shuffle=True, activation=nn.SiLU(), zero_centering=False, 
                       lgk=None, test_folds=None, num_trials=1, mean_std=None, trials_k1=None,
                       fold_val_weight=0, early_stopping_patience=300,
-                      early_stopping_fraction=0.005,
+                      early_stopping_fraction=0.005, lr_patience=60,
                       select_duration=False, fixed_seed=None,
                       exact_duration_model=False):  # trials_k1 is not used here
     """
@@ -950,6 +958,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
                 random_seed=seed, fold_val_weight=fold_val_weight,
                 early_stopping_patience=early_stopping_patience,
                 early_stopping_fraction=early_stopping_fraction,
+                lr_patience=lr_patience,
                 return_history=select_duration,
                 return_resume_state=select_duration,
             )
@@ -1007,6 +1016,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
             fold_val_weight=fold_val_weight,
             early_stopping_patience=early_stopping_patience,
             early_stopping_fraction=early_stopping_fraction,
+            lr_patience=lr_patience,
             label=f"seed {best_seed}",
         )
         selected_epochs = duration['selected_epochs']
@@ -1031,6 +1041,7 @@ def train_model_kfold(num_layers, hidden_size, x_data, y_data, decay=0, k=5, epo
                 mean_std=mean_std, fold_val_weight=fold_val_weight,
                 early_stopping_patience=early_stopping_patience,
                 early_stopping_fraction=early_stopping_fraction,
+                lr_patience=lr_patience,
                 use_early_stopping=selected_epochs is None,
                 restore_best_model=not (selected_epochs is not None
                                         and exact_duration_model),
