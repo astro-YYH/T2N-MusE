@@ -2,6 +2,8 @@
 
 **T2N-MusE** (Triple-2 Neural Network Multifidelity Cosmological Emulation Framework) enables efficient neural network training for regression tasks in cosmological modeling. If you use this framework, please cite this paper: https://arxiv.org/abs/2507.07184 (Yang et al. 2026)
 
+For readers interested in changes made after the paper, see [Post-paper methodology changes since August 2026](METHODOLOGY_CHANGES_SINCE_AUG_2026.md).
+
 We recommend a shallow clone for most users who do not care about the entire commit history:
 ```
 git clone --depth 1 https://github.com/astro-YYH/T2N-MusE.git
